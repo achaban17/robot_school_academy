@@ -144,12 +144,14 @@ let NEWMSG = 0;
 function nav(active){
   const I=A().I;
   const add=(window.RS_ADDITIONS||[]).filter(a=>addStatus(a)==='draft').length;
-  return `<div class="tiny" style="margin:12px 10px 2px;font-weight:800;letter-spacing:.06em;text-transform:uppercase">Адміністратор</div>
+  return `<div class="tiny" style="margin:12px 10px 2px;font-weight:800;letter-spacing:.06em;text-transform:uppercase">Методист</div>
     <a class="nav ${active==='a:home'?'on':''}" href="#/admin">${I.chart}Огляд</a>
+    <a class="nav ${active==='a:branches'?'on':''}" href="#/admin/branches">${I.admin}Філії й адміністратори</a>
     <a class="nav ${active==='a:people'?'on':''}" href="#/admin/people">${I.user}Працівники й звіти</a>
     <a class="nav ${active==='a:problems'?'on':''}" href="#/admin/problems">${I.alert}Методичні проблеми</a>
     <a class="nav ${active==='a:additions'?'on':''}" href="#/admin/additions">${I.edit}Доповнення платформи${add?`<span class="cnt">${add}</span>`:''}</a>
-    <a class="nav ${active==='a:messages'?'on':''}" href="#/admin/messages">${I.mail}Повідомлення${NEWMSG?`<span class="cnt" style="background:var(--red);color:#fff">${NEWMSG}</span>`:''}</a>`;
+    <a class="nav ${active==='a:lib'?'on':''}" href="#/admin/lib">${I.book}База курсів: доступ і файли</a>
+        <a class="nav ${active==='a:messages'?'on':''}" href="#/admin/messages">${I.mail}Повідомлення${NEWMSG?`<span class="cnt" style="background:var(--red);color:#fff">${NEWMSG}</span>`:''}</a>`;
 }
 function route(p){
   const v = p[0]||'';
@@ -158,6 +160,7 @@ function route(p){
   if(v==='problems') return viewProblems(p[1]);
   if(v==='additions') return viewAdditions(p[1], p[2]?decodeURIComponent(p[2]):'');
   if(v==='messages') return viewInbox();
+  if(v==='lib') return window.RS_LIB.adminRoute(p.slice(1));
   return viewDash();
 }
 function loading(active,title){ A().shell(active,`<h1>${esc(title)}</h1><div class="card"><p class="muted">Завантаження даних…</p></div>`) }
@@ -239,7 +242,7 @@ async function viewPerson(email){
   };
   A().shell('a:people',`
     <div class="row noprint" style="margin-bottom:10px"><a class="btn sm ghost" href="#/admin/people">← До списку</a><span class="grow"></span><button class="btn sm ghost" id="csv">⬇ CSV</button><button class="btn sm" id="pr">🖨 Друк / PDF</button></div>
-    <div class="card report-head"><div class="row"><div class="grow"><div class="tiny">Звіт про проходження навчання · Robot School Academy</div><h1 style="margin:4px 0">${esc(t.fio)}</h1>
+    <div class="card report-head"><div class="row"><div class="grow"><div class="tiny">Звіт про проходження навчання · Robot School System · Control System</div><h1 style="margin:4px 0">${esc(t.fio)}</h1>
       <div class="small">Філія «${esc(t.branch)}» · ${esc(t.email)} · ${esc(t.phone)}</div><div class="tiny">Зареєстровано ${fmtD(t.registered)} · остання активність ${fmtDT(s.last||t.lastLogin)} · звіт сформовано ${fmtDT(new Date())}</div></div>
       <img src="assets/logo.png" alt="" style="height:44px"></div></div>
     <div class="grid g4" style="margin:16px 0">

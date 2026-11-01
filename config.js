@@ -11,10 +11,12 @@ window.RS_CONFIG = {
   BRANCHES: ['Полтава', 'Онлайн', 'Кременчук', 'Київ — виїзні заняття'],
   // Адміністратор: логін і SHA-256 хеш пароля (сам пароль тут не зберігається). Має збігатися з Code.gs.
   ADMIN_LOGIN: 'robotschool',
-  ADMIN_HASH: '1d1a7bc3337eed8d521fd9e316ddc6321b599f19d09426d084d9addf51f39562',
+  // Адміністратори філій (вхід у CRM). Хеші паролів; у робочій версії перевіряє сервер (Code.gs, BRANCH_ADMINS).
+  BRANCH_ADMINS: {},   // у робочій версії перевіряє сервер (Code.gs)
+  ADMIN_HASH: '',   // у робочій версії пароль методиста перевіряє сервер (Code.gs)
   CONTACT: 'Методичний відділ Robot School · +38 (066) 545-91-28 · achaban62@gmail.com',
   CONTACT_PHONE: '066 545 91 28',
   CONTACT_EMAIL: 'achaban62@gmail.com',
   DIRS: [ {key:'robot', title:'Робототехніка'}, {key:'3d', title:'3D-графіка'}, {key:'code', title:'Програмування'} ],
-  VERSION: '1.4 · 21.10.2026'
+  VERSION: '3.0 · 30.10.2026'
 };

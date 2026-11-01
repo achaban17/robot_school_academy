@@ -4,8 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<title>Robot School Academy</title>
+<title>Robot School System</title>
 <link rel="icon" type="image/png" href="assets/mark.png">
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0A44DC">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="RS System">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800;900&family=Onest:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
@@ -265,6 +271,69 @@ svg.chart [data-tip]{cursor:default} svg.chart [data-tip]:hover{opacity:.85}
 .addrow{padding:6px 0} a.card.kpi:hover,a.card:hover{border-color:var(--accent)}
 .report-head h1{font-size:28px}
 @media print{ .noprint,.side,.top,#charttip,.burger{display:none!important} .app{display:block!important} .main{padding:0!important;max-width:none!important} body{background:#fff!important} .card{box-shadow:none!important;break-inside:avoid} details{display:block} }
+
+/* ---- база курсів і переглядач (v2.0) ---- */
+.sw{display:inline-block;width:12px;height:12px;border-radius:3px;vertical-align:-1px}
+.lcard{display:block;text-decoration:none;color:inherit}.lcard.locked{opacity:.72}
+.block{margin-bottom:14px}.lrow{display:flex;gap:12px;padding:10px 0;border-top:1px solid var(--line2)}.lrow:first-of-type{border-top:0}
+.lrow .ln{min-width:34px;font-family:var(--f-display);font-weight:800;color:var(--accent)}.lrow.locked{opacity:.6}
+.files{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.fbtn{display:inline-flex;gap:8px;align-items:center;border:1px solid var(--line);background:var(--panel2);color:var(--ink);border-radius:10px;padding:6px 10px;font:inherit;font-size:13.5px;cursor:pointer;text-align:left}
+.fbtn:hover{border-color:var(--accent)}.fk{font-size:11px;font-weight:800;background:var(--sky);color:var(--blue);border-radius:6px;padding:1px 6px}
+.tcard{display:flex;gap:12px;align-items:center;margin-top:10px;padding:12px 14px;border-radius:12px;background:var(--panel2);border:1px dashed var(--line)}
+.tcard.ok{border-color:var(--good);background:var(--good-soft)}.tcard.go{border:1px solid var(--accent)}
+.tcard2{gap:12px;margin-bottom:10px}
+.frow{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 0;border-top:1px solid var(--line2)}
+.qed{margin-bottom:12px}.q.okq{border-color:var(--good)}.q.badq{border-color:var(--bad)}
+.viewer{position:fixed;inset:0;z-index:90;background:#2a2f3d;display:flex;flex-direction:column;user-select:none;-webkit-user-select:none}
+.vw-bar{display:flex;gap:8px;align-items:center;padding:10px 14px;background:var(--panel);border-bottom:1px solid var(--line)}
+.vw-body{flex:1;overflow:auto;padding:12px;display:flex;flex-direction:column;align-items:center;gap:12px}
+.vw-page{background:#fff;box-shadow:0 2px 12px rgba(0,0,0,.35);max-width:100%}.vw-page canvas{display:block;max-width:100%;height:auto}
+.vw-note{font-size:12px;color:#c9cfe0;text-align:center;padding:6px}
+.vw-text{background:#fff;color:#111;max-width:980px;width:100%;padding:18px;border-radius:6px;background-repeat:repeat}.vw-text pre{margin:0;white-space:pre-wrap;font-size:13px}
+@media print{ .viewer{display:none!important} }
+@media (max-width:700px){ .vw-bar{flex-wrap:wrap} .vw-bar b{flex-basis:100%} }
+
+/* ---------- v3.0: вибір ролі, CRM, розклад учителя ---------- */
+.roles{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:18px}
+.roles button{border:1px solid var(--line);background:var(--panel2);border-radius:14px;padding:10px 8px;cursor:pointer;text-align:left;color:var(--ink);font-family:inherit;display:flex;flex-direction:column;gap:2px}
+.roles button b{font-family:var(--f-display);font-size:14px}.roles button span{font-size:11px;color:var(--ink3);line-height:1.25}
+.roles button.on{border-color:var(--blue);background:var(--sky);box-shadow:inset 0 0 0 1px var(--blue)}
+@media(max-width:520px){.roles{grid-template-columns:1fr}}
+.filters .seg{display:inline-flex;margin:0;grid-template-columns:none}
+.seg a{border-radius:999px;padding:8px 14px;font-weight:700;color:var(--ink2);text-decoration:none;font-family:var(--f-display);font-size:14px;white-space:nowrap}
+.seg a.on{background:var(--blue);color:#fff}
+.mdl-wrap{position:fixed;inset:0;background:rgba(6,12,31,.45);z-index:80;display:flex;align-items:flex-start;justify-content:center;padding:6vh 16px;overflow:auto}
+.mdl{width:100%;max-width:640px;margin:0}
+.ava{display:inline-flex;align-items:center;justify-content:center;width:38px;height:38px;border-radius:12px;color:#fff;font-weight:800;font-size:13px;flex:none;vertical-align:middle;margin-right:6px}
+.scard{display:block;color:inherit;text-decoration:none}.scard .row{flex-wrap:nowrap}
+.tags{display:flex;flex-wrap:wrap;gap:6px;margin:10px 0}.tag{display:inline-flex;align-items:center;gap:6px;background:var(--panel2);border:1px solid var(--line2);border-radius:8px;padding:3px 8px;font-size:12px}
+.tag i{width:8px;height:8px;border-radius:3px;display:inline-block}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:4px 14px}.kv>span:nth-child(even){text-align:right}.card .kv>span:nth-child(even){text-align:left}
+.scard .kv>span:nth-child(even){text-align:right}
+.chkgrid{display:flex;flex-direction:column;gap:6px;max-height:220px;overflow:auto;border:1px solid var(--line);border-radius:12px;padding:10px}
+.week{display:grid;grid-template-columns:repeat(7,minmax(130px,1fr));gap:8px;overflow:auto;margin-top:10px}
+.wday{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:8px;min-height:120px}.wday.today{border-color:var(--blue);box-shadow:inset 0 0 0 1px var(--blue)}
+.wh{margin-bottom:6px}.wl{display:block;width:100%;text-align:left;border:1px solid var(--line2);border-left:4px solid var(--blue);background:var(--panel2);border-radius:10px;padding:6px 8px;margin-bottom:6px;cursor:pointer;font:inherit;font-size:13px;color:var(--ink)}
+.wl span{display:block;font-size:11px;color:var(--ink3)}.wl.off{opacity:.5;text-decoration:line-through}
+.mnav{gap:6px}.mnav b{font-family:var(--f-display)}
+table.att th,table.att td{padding:6px 4px;text-align:center}table.att td:first-child,table.att th:first-child{text-align:left;padding-left:12px}
+.ac{width:34px;height:30px;border-radius:9px;border:1px solid var(--line);background:var(--panel2);cursor:pointer;font-weight:800;color:var(--ink3)}
+.ac.p{background:var(--good-soft);color:var(--good);border-color:transparent}.ac.a{background:var(--bad-soft);color:var(--bad);border-color:transparent}.ac:disabled{opacity:.35;cursor:not-allowed}
+.lh{border:0;background:none;cursor:pointer;font:inherit;font-size:12px;font-weight:700;color:var(--ink2);line-height:1.2}.lh.off{text-decoration:line-through;opacity:.5}
+.vbars{display:flex;gap:10px;align-items:flex-end;height:200px}.vb{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%}
+.vbx{flex:1;width:100%;display:flex;gap:3px;align-items:flex-end;justify-content:center}.vbx i{display:block;width:40%;border-radius:6px 6px 0 0;min-height:2px}
+.lg{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+.hb{display:grid;grid-template-columns:minmax(120px,1.2fr) 2fr auto;gap:10px;align-items:center;margin:8px 0;font-size:13px}.hb div{background:var(--panel2);border-radius:6px;height:12px;overflow:hidden}.hb i{display:block;height:100%;background:var(--red);border-radius:6px}
+.mini{display:inline-block;width:80px;height:8px;background:var(--panel2);border-radius:4px;overflow:hidden;vertical-align:middle}.mini i{display:block;height:100%;background:var(--good)}
+.lcard .row{flex-wrap:nowrap}.tl{margin-bottom:10px}.tl .row{flex-wrap:wrap}
+.marks{display:flex;flex-direction:column;gap:6px;margin-top:12px}.mrow{display:flex;gap:6px;align-items:center;border-bottom:1px solid var(--line2);padding:4px 0}
+.prose table.ptable{max-width:none}
+@media(max-width:860px){.login-hero .dirs{display:none}}
+.brandrow{display:flex;align-items:center;gap:8px 10px;flex-wrap:wrap;margin:4px 8px 16px}.brandrow .logo{margin:0}
+.sysname{font-family:var(--f-display);font-weight:900;font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--blue);background:var(--sky);border-radius:8px;padding:4px 8px;line-height:1.1}
+.sysroles{display:grid;gap:10px;margin-top:18px;max-width:560px}.sysroles div{background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.22);border-radius:14px;padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.sysroles b{font-family:var(--f-display);font-size:18px}.sysroles span{font-size:14px;opacity:.9}.printonly{display:none}@media print{.printonly{display:block}.mdl-wrap{display:none}}
 </style>
 </head>
 <body>
@@ -306,7 +375,26 @@ svg.chart [data-tip]{cursor:default} svg.chart [data-tip]:hover{opacity:.85}
 <script src="data/admin-layer.js"></script>
 <script src="modules/trainers.js"></script>
 <script src="modules/admin.js"></script>
+<script src="vendor/pdfjs/pdf.min.js"></script>
+<script src="modules/library.js"></script>
+<script src="modules/crm.js"></script>
 <script src="modules/processing.js"></script>
+<script>
+/* PWA: встановлення на телефон і ПК (працює на https) */
+(function(){
+  if('serviceWorker' in navigator && (location.protocol==='https:' || location.hostname==='localhost')){
+    window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));
+  }
+  let deferred=null;
+  window.addEventListener('beforeinstallprompt',e=>{ e.preventDefault(); deferred=e;
+    if(document.getElementById('pwa-install')) return;
+    const b=document.createElement('button'); b.id='pwa-install'; b.className='btn sm'; b.textContent='⬇ Встановити застосунок';
+    b.style.cssText='position:fixed;right:16px;bottom:16px;z-index:60;box-shadow:0 6px 20px rgba(10,68,220,.3)';
+    b.onclick=async()=>{ b.remove(); deferred.prompt(); try{ await deferred.userChoice }catch(_){ } deferred=null };
+    document.body.appendChild(b); setTimeout(()=>b.remove(),30000);
+  });
+})();
+</script>
 <script>
 /* ======================================================================
    Robot School Academy — оболонка платформи
@@ -426,7 +514,7 @@ function applyEdits(){ if(window.RS_APPLY_ADDITIONS) window.RS_APPLY_ADDITIONS(E
 applyEdits();
 let flushing=false;
 async function flushOutbox(){
-  if(BETA||flushing||!S.user) return;
+  if(BETA||flushing||!S.user||S.crm) return;
   flushing=true;
   try{
     let out = LS.get(KEY+'outbox',[]);
@@ -484,6 +572,8 @@ const I = {
   menu:'<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>',
   trainer:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg>',
   test:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="3" width="14" height="18" rx="2"/><path d="M9 8l1.5 1.5L13 7M9 14h6M9 17h4"/></svg>',
+  book:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 21V5M8 7h7M8 11h7"/></svg>',
+  lock:'<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>',
   mail:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M3 7l9 6 9-6"/></svg>',
   admin:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg>',
   chart:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>',
@@ -507,9 +597,13 @@ function viewLogin(mode){
     <section class="login-hero">
       <img class="logo" src="assets/logo-white.png" alt="Robot School">
       <div>
-        <div class="pill" style="background:rgba(255,255,255,.16);color:#fff">Robot School Academy · для викладачів</div>
-        <h1 style="margin-top:14px">Готуємося до уроку так, щоб діти чекали наступного</h1>
-        <p>Методичні матеріали курсів, тести, інтерактивні тренажери й добірка літератури — в одному кабінеті. Пройдіть курс, відпрацюйте методику й отримайте допуск до викладання.</p>
+        <div class="pill" style="background:rgba(255,255,255,.16);color:#fff">Єдина система школи</div>
+        <h1 style="margin-top:14px">Robot School System</h1>
+        <div class="sysroles">
+          <div><b>CRM</b><span>для адміністраторів філій: учні, оплати, розклад, зарплати, фінзвіти</span></div>
+          <div><b>Academy</b><span>для учителів: навчання та база курсів, розклад уроків</span></div>
+          <div><b>Control System</b><span>для методистів: панель керування навчанням і філіями</span></div>
+        </div>
       </div>
       <div class="dirs">
         ${dirsOf().map((d,i)=>`<div class="dir"><div class="dot" style="background:${['var(--red)','var(--green)','var(--yellow)'][i]};${i===2?'color:#0B1A3F':''}">${[I.courses,I.method,I.trainer][i]}</div><b>${esc(d.title)}</b><span>${d.list.map(c=>esc(c.short||c.title)).join(' · ')}</span></div>`).join('')}
@@ -519,14 +613,20 @@ function viewLogin(mode){
     <section class="login-side">
       <div class="login-card card">
         ${BETA?`<div class="beta-banner"><b>Бета-версія.</b> Реєстрація працює, але дані зберігаються лише в цьому браузері й нікуди не надсилаються.</div>`:''}
-        ${mode==='admin'?`<div class="row" style="margin-bottom:14px"><h2 style="margin:0">Вхід адміністратора</h2><span class="grow"></span><button class="btn sm ghost" data-m="login" type="button">← Учитель</button></div>
+        <div class="roles" role="tablist" aria-label="Оберіть, хто входить">
+          <button type="button" data-m="login" class="${mode==='login'||mode==='reg'?'on':''}"><b>Учитель</b><span>Academy · навчання та база курсів</span></button>
+          <button type="button" data-m="branch" class="${mode==='branch'?'on':''}"><b>Адміністратор</b><span>CRM філії</span></button>
+          <button type="button" data-m="admin" class="${mode==='admin'?'on':''}"><b>Методист</b><span>Control System · панель керування</span></button>
+        </div>
+        ${mode==='admin'||mode==='branch'?`<h2 style="margin:4px 0 12px">${mode==='admin'?'Control System · вхід методиста':'CRM · вхід адміністратора філії'}</h2>
         <form id="f">
           <div class="field"><label>Логін</label><input class="input" name="login" autocomplete="username" required></div>
           <div class="field"><label>Пароль</label><input class="input" name="pw" type="password" autocomplete="current-password" required></div>
           <div class="err" id="err"></div>
-          <button class="btn" type="submit">Увійти як адміністратор</button>
+          <button class="btn" type="submit">${mode==='admin'?'Увійти як методист':'Увійти в CRM філії'}</button>
+          ${mode==='branch'?'<p class="tiny muted" style="margin:12px 0 0">Логін і пароль видає методист. Реєстрація доступна лише вчителям.</p>':''}
         </form>`:`<div class="seg"><button data-m="login" class="${mode==='login'?'on':''}">Увійти</button><button data-m="reg" class="${mode==='reg'?'on':''}">Зареєструватися</button></div>`}
-        ${mode==='admin'?'':mode==='login'?`
+        ${mode==='admin'||mode==='branch'?'':mode==='login'?`
         <form id="f">
           <div class="field"><label>Електронна пошта</label><input class="input" name="email" type="email" autocomplete="email" required placeholder="name@gmail.com"></div>
           <div class="field"><label>Пароль</label><input class="input" name="pw" type="password" autocomplete="current-password" required></div>
@@ -546,7 +646,6 @@ function viewLogin(mode){
           <div class="err" id="err"></div>
           <button class="btn" type="submit">Створити кабінет</button>
         </form>`}
-        ${mode!=='admin'?`<p class="tiny" style="margin:14px 0 0;text-align:right"><a href="#" data-m="admin" id="admlink">Вхід адміністратора</a></p>`:''}
         <div class="callout info small" style="margin:18px 0 0;padding-bottom:12px"><b>Методичний відділ Robot School</b>Питання щодо реєстрації та курсів:<br>📞 <a href="tel:+38${esc((CFG.CONTACT_PHONE||'').replace(/\D/g,''))}">${esc(CFG.CONTACT_PHONE||'')}</a> &nbsp;·&nbsp; ✉ <a href="mailto:${esc(CFG.CONTACT_EMAIL||'')}">${esc(CFG.CONTACT_EMAIL||'')}</a></div>
       </div>
     </section>
@@ -565,7 +664,13 @@ function viewLogin(mode){
       if(mode==='admin'){
         const login=(d.login||'').trim().toLowerCase(); const r=await API.adminLogin(login,pwHash(login,d.pw));
         S.admin=true; S.adminToken=r.token; S.adminExp=r.exp;
-        return signIn({user:{fio:'Адміністратор',email:'admin@robotschool',phone:'',branch:'Методичний відділ',admin:true},token:'',progress:{}});
+        return signIn({user:{fio:'Методист',email:'admin@robotschool',phone:'',branch:'Методичний відділ',admin:true},token:'',progress:{}});
+      }
+      if(mode==='branch'){
+        const login=(d.login||'').trim().toLowerCase(); const hash=pwHash(login,d.pw);
+        const r = BETA ? await window.RS_CRM_LOGIN(login,hash) : await callApi({action:'branchLogin',login,hash});
+        S.crm={token:r.token,branch:r.branch,login:r.login||login};
+        return signIn({user:{fio:'Адміністратор філії',email:'crm@'+login,phone:'',branch:r.branch,crm:true},token:'',progress:{}});
       }
       if(mode==='reg'){
         const phone = normPhone(d.phone);
@@ -587,9 +692,10 @@ function signIn(res){
   S.user=res.user; S.token=res.token;
   const local = LS.get(KEY+'progress_'+res.user.email,{});
   S.progress = mergeProgress(local,res.progress||{});
-  LS.set(KEY+'session',{user:S.user,token:S.token,admin:!!S.admin,adminToken:S.adminToken,adminExp:S.adminExp});
+  LS.set(KEY+'session',{user:S.user,token:S.token,admin:!!S.admin,adminToken:S.adminToken,adminExp:S.adminExp,crm:S.crm||null});
   applyEdits();
   LS.set(KEY+'progress_'+S.user.email,S.progress);
+  if(S.crm){ location.hash='#/crm'; route(); return }
   if(!S.admin) API.myMessages().then(m=>{ LS.set(KEY+'mycache_'+S.user.email,m); if(unreadReplies()&&S.user) route() }).catch(()=>{});
   if(S.admin){ location.hash='#/admin'; route(); } else if(!location.hash || location.hash==='#' || /^#\/admin/.test(location.hash)) location.hash='#/home'; else route();
   flushOutbox();
@@ -599,7 +705,7 @@ function mergeProgress(a,b){
   Object.keys(b||{}).forEach(c=>{ out[c]=out[c]||{}; Object.keys(b[c]).forEach(i=>{ const x=out[c][i], y=b[c][i]; if(!x || (y.percent||0)>(x.percent||0) || (y.passed&&!x.passed)) out[c][i]=y }) });
   return out;
 }
-function signOut(){ LS.del(KEY+'session'); S.user=null; S.progress={}; S.admin=false; S.adminToken=''; applyEdits(); location.hash=''; viewLogin() }
+function signOut(){ LS.del(KEY+'session'); S.user=null; S.progress={}; S.admin=false; S.adminToken=''; S.crm=null; if(window.RS_CRM) window.RS_CRM.reset(); applyEdits(); location.hash=''; viewLogin() }
 
 /* ======================================================================
    КАБІНЕТ
@@ -613,20 +719,22 @@ function shell(active, inner){
   $('#root').innerHTML = `
   <div class="app">
     <aside class="side noprint" id="side">
-      <img class="logo" src="assets/logo.png" alt="Robot School">
+      <div class="brandrow"><img class="logo" src="assets/logo.png" alt="Robot School"><span class="sysname">${S.admin?'Control System':'Academy'}</span></div>
       <a class="nav ${active==='home'?'on':''}" href="#/home">${I.home}Головна</a>
       <div class="navrow"><a class="nav ${active==='courses'?'on':''}" href="#/courses">${I.courses}Курси <span class="cnt">${COURSES.length}</span></a><button class="navtog" id="navtog" title="Згорнути / розгорнути список курсів" aria-expanded="${coursesOpen}"><span class="chev ${coursesOpen?'':'shut'}">▾</span></button></div>
       <div id="navcourses" class="${coursesOpen?'':'hide'}">${cl}</div>
       <a class="nav ${active==='c:method'?'on':''}" href="#/course/method">${I.method}Методична база</a>
       ${S.admin?(window.RS_ADMIN?window.RS_ADMIN.nav(active):''):`<a class="nav ${active==='profile'?'on':''}" href="#/profile">${I.user}Мій прогрес</a>
+      <a class="nav ${active==='schedule'?'on':''}" href="#/schedule">${I.test}Мій розклад</a>
+      <a class="nav ${active==='lib'?'on':''}" href="#/lib">${I.book}База курсів</a>
       <a class="nav ${active==='messages'?'on':''}" href="#/messages">${I.mail}Написати методисту${unreadReplies()?`<span class="cnt" style="background:var(--red);color:#fff">${unreadReplies()}</span>`:''}</a>`}
       <a class="nav ${active==='help'?'on':''}" href="#/help">${I.help}Як працювати з платформою</a>
-      <div class="me"><b>${esc(u.fio)}</b><span class="tiny">${S.admin?'логін robotschool':esc(u.branch)+' · '+esc(u.email)}</span>
+      <div class="me"><b>${esc(u.fio)}</b><span class="tiny">${S.admin?'методист · логін robotschool':esc(u.branch)+' · '+esc(u.email)}</span>
         <div class="row" style="margin-top:10px;gap:6px"><button class="btn sm ghost" id="logout">${I.out.replace('<svg','<svg width="16" height="16"')}Вийти</button><button class="btn sm ghost" id="theme" title="Світла/темна тема">${I.theme.replace('width="20" height="20"','width="16" height="16"')}</button></div>
       </div>
     </aside>
     <main class="main">
-      <div class="top noprint"><button class="btn sm ghost burger" id="burger">${I.menu}</button><span class="grow"></span>${S.admin?'<span class="mode-chip" style="background:var(--sky);color:var(--blue)">АДМІНІСТРАТОР</span>':''}${BETA?'<span class="mode-chip" title="Дані зберігаються лише в цьому браузері">БЕТА · дані лише локально</span>':''}</div>
+      <div class="top noprint"><button class="btn sm ghost burger" id="burger">${I.menu}</button><span class="grow"></span>${S.admin?'<span class="mode-chip" style="background:var(--sky);color:var(--blue)">МЕТОДИСТ</span>':''}${BETA?'<span class="mode-chip" title="Дані зберігаються лише в цьому браузері">БЕТА · дані лише локально</span>':''}</div>
       <div id="view">${inner}</div>
     </main>
   </div>`;
@@ -911,7 +1019,7 @@ function certificate(c){
   const avg=Math.round(its.reduce((a,i)=>a+(p[i.id]?p[i.id].percent:0),0)/Math.max(1,its.length));
   const last=Object.values(p).map(r=>r.at).sort().pop();
   const w=window.open('','_blank'); if(!w){toast('Дозвольте спливаючі вікна, щоб відкрити сертифікат');return}
-  w.document.write(`<!doctype html><html lang="uk"><head><meta charset="utf-8"><title>Сертифікат — ${esc(c.title)}</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;900&family=Onest:wght@400;600&display=swap"><style>body{font-family:Onest,sans-serif;margin:0;padding:40px;color:#0B1A3F}.c{border:8px solid #0A44DC;border-radius:30px;padding:56px;text-align:center;max-width:900px;margin:auto}h1{font-family:Montserrat;font-weight:900;font-size:40px;margin:26px 0 8px}h2{font-family:Montserrat;font-size:30px;margin:10px 0;color:#0A44DC}p{font-size:17px}</style></head><body><div class="c"><img src="${location.href.split('#')[0].replace(/[^/]*$/,'')}assets/logo.png" style="width:260px"><h1>СЕРТИФІКАТ</h1><p>засвідчує, що викладач</p><h2>${esc(S.user.fio)}</h2><p>філія «${esc(S.user.branch)}»</p><p>опрацював(-ла) методичні матеріали та успішно склав(-ла) тести курсу</p><h2>«${esc(c.title)}»</h2><p>середній результат тестів: <b>${avg}%</b> · дата: <b>${last?new Date(last).toLocaleDateString('uk-UA'):''}</b></p><p style="margin-top:40px;font-size:14px;color:#44507A">Robot School Academy · внутрішня платформа підготовки викладачів</p></div><script>setTimeout(()=>print(),600)<\/script></body></html>`);
+  w.document.write(`<!doctype html><html lang="uk"><head><meta charset="utf-8"><title>Сертифікат — ${esc(c.title)}</title><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;900&family=Onest:wght@400;600&display=swap"><style>body{font-family:Onest,sans-serif;margin:0;padding:40px;color:#0B1A3F}.c{border:8px solid #0A44DC;border-radius:30px;padding:56px;text-align:center;max-width:900px;margin:auto}h1{font-family:Montserrat;font-weight:900;font-size:40px;margin:26px 0 8px}h2{font-family:Montserrat;font-size:30px;margin:10px 0;color:#0A44DC}p{font-size:17px}</style></head><body><div class="c"><img src="${location.href.split('#')[0].replace(/[^/]*$/,'')}assets/logo.png" style="width:260px"><h1>СЕРТИФІКАТ</h1><p>засвідчує, що викладач</p><h2>${esc(S.user.fio)}</h2><p>філія «${esc(S.user.branch)}»</p><p>опрацював(-ла) методичні матеріали та успішно склав(-ла) тести курсу</p><h2>«${esc(c.title)}»</h2><p>середній результат тестів: <b>${avg}%</b> · дата: <b>${last?new Date(last).toLocaleDateString('uk-UA'):''}</b></p><p style="margin-top:40px;font-size:14px;color:#44507A">Robot School System · Academy — підготовка викладачів</p></div><script>setTimeout(()=>print(),600)<\/script></body></html>`);
   w.document.close();
 }
 function viewHelp(){
@@ -936,11 +1044,16 @@ function route(){
   if(!S.user){ viewLogin(); return }
   const p = (location.hash||'#/home').replace(/^#\/?/,'').split('/');
   const ov=$('.overlay'); if(ov) ov.remove();
+  if(S.crm){ if(p[0]!=='crm'){ location.hash='#/crm'; return } return window.RS_CRM.route(p.slice(1)) }
+  if(p[0]==='crm'){ location.hash='#/home'; return }
+  if(p[0]==='schedule' && !S.admin) return window.RS_CRM.teacherRoute(p.slice(1));
+  if(p[0]==='admin' && p[1]==='branches' && S.admin) return window.RS_CRM.methodistRoute();
   if(p[0]==='course') return viewCourse(p[1],p[2],p[3]);
   if(p[0]==='courses') return viewCourses();
   if(p[0]==='profile') return viewProfile();
   if(p[0]==='help') return viewHelp();
   if(p[0]==='messages' && !S.admin) return window.RS_ADMIN.viewMessages();
+  if(p[0]==='lib') return window.RS_LIB.route(p.slice(1));
   if(p[0]==='admin'){ if(!S.admin){ location.hash='#/home'; return } return window.RS_ADMIN.route(p.slice(1)); }
   if(S.admin && (p[0]==='home'||p[0]==='profile'||p[0]==='messages')) return window.RS_ADMIN.route([]);
   return viewHome();
@@ -950,7 +1063,8 @@ window.RS_GO = h=>{ location.hash=h };
 
 /* ---------- доступ для модуля адміністратора ---------- */
 function unreadReplies(){ const seen=LS.get(KEY+'seen_'+(S.user&&S.user.email),[]); return (LS.get(KEY+'mycache_'+(S.user&&S.user.email),[])||[]).filter(m=>m.reply&&seen.indexOf(m.id)<0).length }
-window.RS_APP = { S, LS, KEY, BETA, CFG, PASS, ALL, COURSES, API, esc, shell, toast, bindGo, courseItems, I, route, signOut, sha256,
+window.RS_CRM_LOGIN = async (login,hash)=>{ const c=Object.assign({},CFG.BRANCH_ADMINS||{},LS.get(KEY+'bcred',{})); const b=Object.keys(c).find(x=>c[x].login===login&&c[x].hash===hash); if(!b) throw new Error('Невірний логін або пароль адміністратора філії.'); return {token:'beta-crm',branch:b,login} };
+window.RS_APP = { S, LS, KEY, BETA, CFG, PASS, ALL, COURSES, API, esc, shell, toast, bindGo, courseItems, I, route, signOut, sha256, callApi,
   get EDITS(){ return EDITS }, setEdits(e){ EDITS=e||{}; applyEdits() }, unreadReplies };
 
 /* ---------- старт ---------- */
@@ -958,9 +1072,9 @@ const th = LS.get('rsa_theme',null); if(th) document.documentElement.setAttribut
 if(!BETA && !CFG.API_URL) console.warn('RS: режим prod, але API_URL не задано в config.js');
 const sess = LS.get(KEY+'session',null);
 if(sess && sess.admin && (!sess.adminExp || sess.adminExp<Date.now())){ LS.del(KEY+'session'); viewLogin('admin') }
-else if(sess && sess.user){ S.user=sess.user; S.token=sess.token; S.admin=!!sess.admin; S.adminToken=sess.adminToken; S.adminExp=sess.adminExp; S.progress=LS.get(KEY+'progress_'+sess.user.email,{}); applyEdits(); route();
-  API.getEdits().then(ed=>{ EDITS=ed||{}; applyEdits(); if(!S.admin) route() });
-  if(!BETA && !S.admin) flushOutbox().then(()=>callApi({action:'sync',email:S.user.email,token:S.token})).then(j=>{ S.progress=mergeProgress(S.progress,j.progress||{}); LS.set(KEY+'progress_'+S.user.email,S.progress) }).catch(e=>{ if(/Сесія застаріла/.test(e.message)){ toast('Сесія застаріла — увійдіть знову'); signOut() } }) }
+else if(sess && sess.user){ S.user=sess.user; S.token=sess.token; S.admin=!!sess.admin; S.adminToken=sess.adminToken; S.adminExp=sess.adminExp; S.crm=sess.crm||null; S.progress=LS.get(KEY+'progress_'+sess.user.email,{}); applyEdits(); route();
+  if(!S.crm) API.getEdits().then(ed=>{ EDITS=ed||{}; applyEdits(); if(!S.admin) route() });
+  if(!BETA && !S.admin && !S.crm) flushOutbox().then(()=>callApi({action:'sync',email:S.user.email,token:S.token})).then(j=>{ S.progress=mergeProgress(S.progress,j.progress||{}); LS.set(KEY+'progress_'+S.user.email,S.progress) }).catch(e=>{ if(/Сесія застаріла/.test(e.message)){ toast('Сесія застаріла — увійдіть знову'); signOut() } }) }
 else { viewLogin(); API.getEdits().then(ed=>{ EDITS=ed||{}; applyEdits() }) }
 
 
