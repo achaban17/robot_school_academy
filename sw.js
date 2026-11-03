@@ -1,7 +1,7 @@
 /* Robot School Academy — service worker.
    Кешує лише оболонку застосунку (сторінку, скрипти, іконки), щоб він швидко відкривався й працював як застосунок.
    Файли уроків, тести й результати йдуть через сервер (POST) і НЕ кешуються. */
-const CACHE = 'rsa-shell-v2.0';
+const CACHE = 'rsa-shell-v3.2';
 self.addEventListener('install', e => { self.skipWaiting(); });
 self.addEventListener('activate', e => {
   e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k.startsWith('rsa-shell-') && k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim()));

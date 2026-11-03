@@ -319,7 +319,12 @@ svg.chart [data-tip]{cursor:default} svg.chart [data-tip]:hover{opacity:.85}
 .mnav{gap:6px}.mnav b{font-family:var(--f-display)}
 table.att th,table.att td{padding:6px 4px;text-align:center}table.att td:first-child,table.att th:first-child{text-align:left;padding-left:12px}
 .ac{width:34px;height:30px;border-radius:9px;border:1px solid var(--line);background:var(--panel2);cursor:pointer;font-weight:800;color:var(--ink3)}
-.ac.p{background:var(--good-soft);color:var(--good);border-color:transparent}.ac.a{background:var(--bad-soft);color:var(--bad);border-color:transparent}.ac:disabled{opacity:.35;cursor:not-allowed}
+.ac.p{background:var(--good-soft);color:var(--good);border-color:transparent}.ac.a{background:var(--bad-soft);color:var(--bad);border-color:transparent}.ac.w{background:#E3ECFF;color:#0A44DC;border-color:transparent}.ac.t{background:var(--warn-soft);color:var(--warn);border-color:transparent}
+.acm{position:absolute;z-index:80;padding:6px;display:grid;gap:2px;min-width:200px;box-shadow:0 10px 30px rgba(11,26,63,.18)}
+.acm button{display:flex;gap:10px;align-items:center;border:0;background:none;padding:6px 8px;border-radius:9px;cursor:pointer;font:inherit;font-size:14px;color:var(--ink);text-align:left}
+.acm button:hover,.acm button.on{background:var(--panel2)}.acm button .ac{width:28px;height:24px;display:inline-grid;place-items:center;cursor:inherit}.acm .clr{color:var(--ink3);font-size:13px}
+.pill.info{background:#E3ECFF;color:#0A44DC}
+:root[data-theme="dark"] .ac.w,:root[data-theme="dark"] .pill.info{background:rgba(57,135,229,.22);color:#9cc2ff}.ac:disabled{opacity:.35;cursor:not-allowed}
 .lh{border:0;background:none;cursor:pointer;font:inherit;font-size:12px;font-weight:700;color:var(--ink2);line-height:1.2}.lh.off{text-decoration:line-through;opacity:.5}
 .vbars{display:flex;gap:10px;align-items:flex-end;height:200px}.vb{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;height:100%}
 .vbx{flex:1;width:100%;display:flex;gap:3px;align-items:flex-end;justify-content:center}.vbx i{display:block;width:40%;border-radius:6px 6px 0 0;min-height:2px}
@@ -378,6 +383,7 @@ table.att th,table.att td{padding:6px 4px;text-align:center}table.att td:first-c
 <script src="vendor/pdfjs/pdf.min.js"></script>
 <script src="modules/library.js"></script>
 <script src="modules/crm.js"></script>
+<script src="modules/builder.js"></script>
 <script src="modules/processing.js"></script>
 <script>
 /* PWA: встановлення на телефон і ПК (працює на https) */
@@ -696,6 +702,7 @@ function signIn(res){
   applyEdits();
   LS.set(KEY+'progress_'+S.user.email,S.progress);
   if(S.crm){ location.hash='#/crm'; route(); return }
+  if(window.RS_BUILDER) window.RS_BUILDER.refresh().then(()=>{ if(S.user&&!S.crm) route() }).catch(()=>{});
   if(!S.admin) API.myMessages().then(m=>{ LS.set(KEY+'mycache_'+S.user.email,m); if(unreadReplies()&&S.user) route() }).catch(()=>{});
   if(S.admin){ location.hash='#/admin'; route(); } else if(!location.hash || location.hash==='#' || /^#\/admin/.test(location.hash)) location.hash='#/home'; else route();
   flushOutbox();
@@ -1048,6 +1055,7 @@ function route(){
   if(p[0]==='crm'){ location.hash='#/home'; return }
   if(p[0]==='schedule' && !S.admin) return window.RS_CRM.teacherRoute(p.slice(1));
   if(p[0]==='admin' && p[1]==='branches' && S.admin) return window.RS_CRM.methodistRoute();
+  if(p[0]==='admin' && p[1]==='builder' && S.admin) return window.RS_BUILDER.route(p.slice(2));
   if(p[0]==='course') return viewCourse(p[1],p[2],p[3]);
   if(p[0]==='courses') return viewCourses();
   if(p[0]==='profile') return viewProfile();

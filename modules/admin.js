@@ -151,6 +151,7 @@ function nav(active){
     <a class="nav ${active==='a:problems'?'on':''}" href="#/admin/problems">${I.alert}Методичні проблеми</a>
     <a class="nav ${active==='a:additions'?'on':''}" href="#/admin/additions">${I.edit}Доповнення платформи${add?`<span class="cnt">${add}</span>`:''}</a>
     <a class="nav ${active==='a:lib'?'on':''}" href="#/admin/lib">${I.book}База курсів: доступ і файли</a>
+    <a class="nav ${active==='a:builder'?'on':''}" href="#/admin/builder">${I.book}Конструктор курсів</a>
         <a class="nav ${active==='a:messages'?'on':''}" href="#/admin/messages">${I.mail}Повідомлення${NEWMSG?`<span class="cnt" style="background:var(--red);color:#fff">${NEWMSG}</span>`:''}</a>`;
 }
 function route(p){

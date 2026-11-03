@@ -67,7 +67,7 @@ const Local = {
   },
   save(st){ try{ localStorage.setItem(this.key(), JSON.stringify(st)) }catch(e){ throw new Error('У браузері забракло місця для демо-бази (файл завеликий для бети).') } },
   best(st, email){ const o={}; st.bres.forEach(r=>{ if(email && r.email!==email) return; const k=r.email+'|'+r.cid+'|'+r.testId; const p=o[k]||{percent:0,passed:false,attempts:0}; o[k]={percent:Math.max(p.percent,r.percent), passed:p.passed||r.passed, attempts:p.attempts+1, at:r.at} }); return o },
-  courses(st){ const o={}; st.lib.forEach(f=>{ o[f.cid]=o[f.cid]||{cid:f.cid,title:(st.settings[f.cid]||{}).title||f.cid,n:{}}; o[f.cid].n[f.n]=1 }); return Object.values(o).map(c=>({cid:c.cid,title:c.title,lessons:Object.keys(c.n).length})) },
+  courses(st){ const o={}; st.lib.forEach(f=>{ o[f.cid]=o[f.cid]||{cid:f.cid,title:(st.settings[f.cid]||{}).title||(customOf(f.cid)||{}).title||f.cid,n:{}}; o[f.cid].n[f.n]=1 }); return Object.values(o).map(c=>({cid:c.cid,title:c.title,lessons:Object.keys(c.n).length})) },
   who(body){ const S=A().S; return S.admin?{email:'admin',fio:'Адміністратор',branch:''}:{email:S.user.email,fio:S.user.fio,branch:S.user.branch} },
   handle(action, b){
     const st=this.load(), S=A().S, email=S.admin?'admin':S.user.email;
@@ -102,7 +102,7 @@ const Local = {
       case 'admTestDelete': needAdmin(); st.tests=st.tests.filter(x=>!(x.cid===b.cid&&x.id===b.id)); this.save(st); return {tests:st.tests.filter(x=>x.cid===b.cid)};
       case 'admFile': { needAdmin(); const f=st.lib.find(x=>x.id===b.id); if(!f) throw new Error('Файл не знайдено.'); if(b.status) f.status=b.status; if(b.title) f.title=b.title; if(b.kind) f.kind=b.kind; f.updated=new Date().toISOString(); this.save(st); return {lib:st.lib} }
       case 'admUpload': { needAdmin(); const same=st.lib.find(f=>f.cid===b.cid&&f.n===Number(b.n)); const id='up:'+Date.now().toString(36);
-        st.uploads[id]=b.data; st.lib.push({id,cid:b.cid,n:Number(b.n),lname:(same&&same.lname)||('Урок '+b.n),label:(same&&same.label)||String(b.n),title:b.title||b.name,kind:b.kind||'Додатково',status:b.status==='draft'?'draft':'active',path:b.cid+'/'+b.n+'/'+b.name,size:atob(b.data).length,updated:new Date().toISOString(),always:!!(same&&same.always)});
+        st.uploads[id]=b.data; st.lib.push({id,cid:b.cid,n:Number(b.n),lname:(same&&same.lname)||b.lname||('Урок '+b.n),label:(same&&same.label)||b.label||String(b.n),title:b.title||b.name,kind:b.kind||'Додатково',status:b.status==='draft'?'draft':'active',path:b.cid+'/'+b.n+'/'+b.name,size:atob(b.data).length,updated:new Date().toISOString(),always:!!(same&&same.always)});
         if(b.replaceId){ const o=st.lib.find(x=>x.id===b.replaceId); if(o) o.status='archived' } this.save(st); return {lib:st.lib} }
       case 'admLog': needAdmin(); return {log:st.log.slice().reverse()};
     }
@@ -307,9 +307,9 @@ function admShell(inner){ A().shell('a:lib', inner) }
 async function admHome(){
   admShell(head('База курсів')+'<div class="card"><p class="muted">Завантаження…</p></div>');
   let d, people; try{ d=await loadAdm(); people=await loadTeachers() }catch(e){ return admShell(head('База курсів')+`<div class="callout bad"><b>Помилка</b><p>${esc(e.message)}</p></div>`) }
-  const cids=[...new Set(d.lib.map(f=>f.cid))];
+  const cids=libCids(d);
   const rows=cids.map(cid=>{ const files=d.lib.filter(f=>f.cid===cid&&f.status!=='archived'), T=d.tests.filter(t=>t.cid===cid), s=d.settings[cid]||{mode:'tests',pass:75};
-    return {cid,title:s.title||cid,files:files.length,draftF:files.filter(f=>f.status==='draft').length,lessons:new Set(files.map(f=>f.n)).size,tests:T.length,pub:T.filter(t=>t.status==='published').length,mode:s.mode,pass:s.pass,users:d.access.filter(a=>a.cid===cid&&a.granted).length} });
+    return {cid,title:cTitle(d,cid),files:files.length,draftF:files.filter(f=>f.status==='draft').length,lessons:new Set(files.map(f=>f.n)).size,tests:T.length,pub:T.filter(t=>t.status==='published').length,mode:s.mode,pass:s.pass,users:d.access.filter(a=>a.cid===cid&&a.granted).length} });
   admShell(`<div class="row"><h1 style="margin:0">База курсів</h1><span class="grow"></span><a class="btn sm ghost" href="#/admin/lib/log">Журнал переглядів і друку</a></div>
     <p class="muted" style="max-width:880px">Учитель після реєстрації бачить лише навчання вчителів. Матеріали уроків з’являються, коли ви відкриєте йому курс (тут або у звіті працівника). Тести, що мають статус «чернетка», учителі не бачать — і наступні уроки за ними не відкриються, доки ви не опублікуєте тест або не відкриєте уроки вручну.</p>
     ${A().BETA?'<div class="callout warn small"><b>Бета-версія</b><p>Тут демо-база з кількох уроків двох курсів. Повна база й заміна великих файлів працюють у робочій версії на Google Диску.</p></div>':''}
@@ -319,23 +319,28 @@ async function admHome(){
     <h2 style="margin-top:24px">Доступ працівників</h2>
     <div class="filters"><input class="input" id="uq" placeholder="Пошук працівника" style="max-width:320px"></div>
     <div class="card" style="padding:0;overflow:auto"><table class="prose ptable" id="ut" style="width:100%;margin:0"><thead><tr><th>Працівник</th><th>Філія</th><th>Відкриті курси</th><th></th></tr></thead><tbody>
-    ${people.map(u=>{ const g=d.access.filter(a=>a.email===u.email&&a.granted).map(a=>(d.settings[a.cid]||{}).title||a.cid);
+    ${people.map(u=>{ const g=d.access.filter(a=>a.email===u.email&&a.granted).map(a=>cTitle(d,a.cid));
       return `<tr data-s="${esc((u.fio+' '+u.email).toLowerCase())}"><td><b>${esc(u.fio)}</b><div class="tiny">${esc(u.email)}</div></td><td>${esc(u.branch)}</td><td class="small">${g.length?g.map(esc).join(', '):'<span class="muted">лише навчання вчителів</span>'}</td><td><a class="btn sm ghost" href="#/admin/lib/user/${encodeURIComponent(u.email)}">Доступ</a></td></tr>` }).join('')||'<tr><td colspan="4" class="muted">Ще немає зареєстрованих працівників.</td></tr>'}</tbody></table></div>`);
   $('#uq').oninput=e=>{ const q=e.target.value.trim().toLowerCase(); $$('#ut tbody tr').forEach(tr=>tr.style.display=!q||(tr.dataset.s||'').includes(q)?'':'none') };
 }
-function lessonsOf(d,cid){ const o={}; d.lib.filter(f=>f.cid===cid).forEach(f=>{ o[f.n]=o[f.n]||{n:f.n,label:f.label,name:f.lname,always:f.always,files:[]}; o[f.n].files.push(f) }); return Object.values(o).sort((a,b)=>a.n-b.n) }
+function customOf(cid){ return (window.RS_CUSTOM||[]).find(c=>c.id===cid) }
+function libCids(d){ return [...new Set(d.lib.map(f=>f.cid).concat((window.RS_CUSTOM||[]).map(c=>c.id)))] }
+function cTitle(d,cid){ const c=customOf(cid); return (d.settings[cid]||{}).title||(c&&c.title)||cid }
+function lessonsOf(d,cid){ const o={}; d.lib.filter(f=>f.cid===cid).forEach(f=>{ o[f.n]=o[f.n]||{n:f.n,label:f.label,name:f.lname,always:f.always,files:[]}; o[f.n].files.push(f) });
+  const cc=customOf(cid); if(cc) (cc.plan||[]).forEach(l=>{ const n=Number(l.n); if(!o[n]) o[n]={n,label:String(l.label||n),name:l.name,always:!!l.always,files:[]}; else if(!o[n].files.length) o[n].name=l.name });
+  return Object.values(o).sort((a,b)=>a.n-b.n) }
 async function admUser(email){
   admShell('<div class="card"><p class="muted">Завантаження…</p></div>');
   let d, people; try{ d=await loadAdm(); people=await loadTeachers() }catch(e){ return admShell(`<div class="callout bad">${esc(e.message)}</div>`) }
   const u=people.find(x=>x.email===email)||{fio:email,email,branch:''};
-  const cids=[...new Set(d.lib.map(f=>f.cid))];
+  const cids=libCids(d);
   const best={}; d.results.filter(r=>r.email===email).forEach(r=>best[r.email+'|'+r.cid+'|'+r.testId]=r);
   admShell(`<a class="btn sm ghost" href="#/admin/lib">← База курсів</a><h1 style="margin-top:12px">${esc(u.fio)}</h1><p class="muted">${esc(u.branch)} · ${esc(u.email)} · <a href="#/admin/person/${encodeURIComponent(email)}">звіт про навчання</a></p>
     <div class="card" style="padding:0;overflow:auto"><table class="prose ptable" style="width:100%;margin:0"><thead><tr><th>Курс</th><th>Доступ</th><th>Відкрито вручну до уроку</th><th>Стан</th><th></th></tr></thead><tbody>
     ${cids.map(cid=>{ const a=d.access.find(x=>x.email===email&&x.cid===cid)||{granted:false,upTo:null}; const L=lessonsOf(d,cid).filter(l=>!l.always);
       const st=courseState(cid,email,d.lib,d.tests,d.settings,a.granted?a:null,best,false);
       const openN=st.lessons.filter(l=>!l.always&&l.open).length;
-      return `<tr data-cid="${cid}"><td><b>${esc((d.settings[cid]||{}).title||cid)}</b></td><td><label class="row" style="gap:6px"><input type="checkbox" class="g" ${a.granted?'checked':''}> відкрито</label></td>
+      return `<tr data-cid="${cid}"><td><b>${esc(cTitle(d,cid))}</b></td><td><label class="row" style="gap:6px"><input type="checkbox" class="g" ${a.granted?'checked':''}> відкрито</label></td>
         <td><select class="input up" style="max-width:260px"><option value="">— за правилами курсу —</option>${L.map(l=>`<option value="${l.n}" ${a.upTo===l.n?'selected':''}>до уроку ${esc(l.label)} · ${esc(l.name)}</option>`).join('')}</select></td>
         <td class="small">${a.granted?`відкрито уроків: ${openN} з ${L.length}<br>тестів складено: ${st.tests.filter(t=>t.passed).length} з ${st.tests.length}`:'—'}</td><td><button class="btn sm sv">Зберегти</button></td></tr>` }).join('')}</tbody></table></div>`);
   $$('tr[data-cid]').forEach(tr=>{ $('.sv',tr).onclick=async()=>{ try{ await call('admGrant',{email,cid:tr.dataset.cid,granted:$('.g',tr).checked,upTo:$('.up',tr).value}); A().toast('Збережено'); admUser(email) }catch(e){ A().toast(e.message) } } });
@@ -343,7 +348,7 @@ async function admUser(email){
 async function admCourse(cid, tab){
   admShell('<div class="card"><p class="muted">Завантаження…</p></div>');
   let d, people; try{ d=await loadAdm(); people=tab==='access'?await loadTeachers():[] }catch(e){ return admShell(`<div class="callout bad">${esc(e.message)}</div>`) }
-  const s=d.settings[cid]||{cid,mode:'tests',pass:75,title:cid}, L=lessonsOf(d,cid), T=d.tests.filter(t=>t.cid===cid).sort((a,b)=>a.after-b.after);
+  const s=d.settings[cid]||{cid,mode:'tests',pass:75,title:cTitle(d,cid)}, L=lessonsOf(d,cid), T=d.tests.filter(t=>t.cid===cid).sort((a,b)=>a.after-b.after);
   const tabs=[['files','Файли уроків'],['tests','Тести блоків ('+T.length+')'],['access','Доступ учителів'],['settings','Налаштування']];
   let body='';
   if(tab==='settings') body=`<form class="card" id="sf" style="max-width:760px">
@@ -379,7 +384,7 @@ async function admCourse(cid, tab){
     const fe=$('.fe',r); if(fe) fe.onclick=async()=>{ const t=prompt('Назва файлу для вчителів:',f.title); if(t===null) return; const k=prompt('Тип ('+KINDS.join(', ')+'):',f.kind); if(k===null) return; try{ await call('admFile',{id,title:t.trim()||f.title,kind:k.trim()||f.kind}); admCourse(cid,'files') }catch(e){ A().toast(e.message) } };
     const fr=$('.fr',r); if(fr) fr.onclick=()=>pickUpload({cid,n:f.n,replace:f});
   });
-  $$('[data-add]').forEach(b=>b.onclick=()=>pickUpload({cid,n:Number(b.dataset.add)}));
+  $$('[data-add]').forEach(b=>b.onclick=()=>{ const l=L.find(x=>x.n===Number(b.dataset.add))||{}; pickUpload({cid,n:Number(b.dataset.add),lname:l.name,label:l.label}) });
   const pub=$('#pub'); if(pub) pub.onclick=async()=>{ const dr=T.filter(t=>t.status!=='published'); if(!dr.length) return A().toast('Чернеток немає'); if(!confirm('Опублікувати '+dr.length+' тест(ів)? Учителі побачать їх одразу.')) return;
     try{ for(const t of dr) await call('admTestSave',{cid,id:t.id,after:t.after,status:'published',test:t.t}); A().toast('Опубліковано'); admCourse(cid,'tests') }catch(e){ A().toast(e.message) } };
   $$('tr[data-email]').forEach(tr=>{ $('.sv',tr).onclick=async()=>{ try{ await call('admGrant',{email:tr.dataset.email,cid,granted:$('.g',tr).checked,upTo:$('.up',tr).value}); A().toast('Збережено'); admCourse(cid,'access') }catch(e){ A().toast(e.message) } } });
@@ -392,7 +397,7 @@ function pickUpload(o){
     const kind=o.replace?o.replace.kind:(prompt('Тип ('+KINDS.join(', ')+'):','SB')||'Додатково');
     const data=await new Promise((res,rej)=>{ const fr=new FileReader(); fr.onload=()=>res(String(fr.result).split(',')[1]); fr.onerror=rej; fr.readAsDataURL(file) });
     A().toast('Завантаження файлу…');
-    try{ await call('admUpload',{cid:o.cid,n:o.n,name:file.name,mime:file.type||'application/pdf',title,kind,data,replaceId:o.replace?o.replace.id:''}); A().toast(o.replace?'Файл замінено':'Файл додано'); admCourse(o.cid,'files') }catch(e){ A().toast(e.message) }
+    try{ await call('admUpload',{cid:o.cid,n:o.n,lname:o.lname||'',label:o.label||'',name:file.name,mime:file.type||'application/pdf',title,kind,data,replaceId:o.replace?o.replace.id:''}); A().toast(o.replace?'Файл замінено':'Файл додано'); admCourse(o.cid,'files') }catch(e){ A().toast(e.message) }
   };
   inp.click();
 }

@@ -64,12 +64,34 @@ function lessonsIn(T, from, to){
     return {id:g.id+'|'+date+'|'+time, gid:g.id, g, date, time, dur, sub, groupTeacher:String(g.teacher||'').toLowerCase(), teacher: sub||String(g.teacher||'').toLowerCase(),
       status:l.status||'', cancelled:l.status==='cancelled', extra:l.status==='extra', done:l.done==='так'||l.done===true, note:l.note||'', by:l.by||'', row:l} }
 }
+/* позначки відвідування: присутній, не було, відпрацював (заняття замість пропущеного), пробний урок */
+const MARKS = {p:{l:'Присутній',s:'✓'}, a:{l:'Не було',s:'Н'}, w:{l:'Відпрацював',s:'В'}, t:{l:'Пробний урок',s:'П'}};
+const MARK_ORDER = ['p','a','w','t'];
+const ATTENDED = m => m==='p'||m==='w'||m==='t';   // був на занятті (рахується вчителю)
+const CHARGED = m => m==='p'||m==='w';             // списується ціна уроку; пробний — за ціною пробного з налаштувань
+const DEF_PACKS = [{n:12,pct:5},{n:24,pct:10},{n:42,pct:15}];
+/* абонементи на N уроків: оплата з pack>0. Відвідані заняття групи (з дати початку абонемента) списуються
+   за ціною уроку в абонементі, доки не закінчаться уроки; далі — за звичайною ціною */
+const packStart = p => p.month ? p.month+'-01' : String(p.date||'').slice(0,10);
+function packsOf(T, sid, gid){ return (T.pays||[]).filter(p=>Number(p.pack)>0&&p.sid===sid&&(!p.gid||p.gid===gid)).sort((a,b)=>packStart(a).localeCompare(packStart(b))||String(a.date).localeCompare(b.date)||(Number(a.no)||0)-(Number(b.no)||0)) }
+const packUsed = (T, pid, except) => (T.att||[]).filter(a=>a.pk===pid&&a.id!==except).length;
+const packPrice = p => Math.round(Number(p.amount||0)*100/Number(p.pack))/100;
+function packState(T, p){ const used=packUsed(T,p.id); return {p, used, left:Math.max(0,Number(p.pack)-used), per:packPrice(p)} }
+function studentPacks(T, sid){ return (T.pays||[]).filter(p=>Number(p.pack)>0&&p.sid===sid).sort((a,b)=>String(b.date).localeCompare(a.date)).map(p=>packState(T,p)) }
+function attPrice(T, row){
+  const m=row.mark; if(m==='t') return {price:cfgOf(T).trialPrice||0, pk:''}; if(!CHARGED(m)) return {price:0, pk:''};
+  const ps=packsOf(T,row.sid,row.gid).filter(p=>packStart(p)<=String(row.date)), prev=(T.att||[]).find(a=>a.id===row.id);
+  if(prev&&prev.pk){ const p=ps.find(x=>x.id===prev.pk); if(p) return {price:packPrice(p), pk:p.id} }
+  for(const p of ps) if(packUsed(T,p.id,row.id)<Number(p.pack)) return {price:packPrice(p), pk:p.id};
+  const g=(T.groups||[]).find(x=>x.id===row.gid), st=(T.students||[]).find(x=>x.id===row.sid); return {price:lessonPrice(T,g,st), pk:''};
+}
+const markPill = m => m&&MARKS[m]?`<span class="pill ${m==='p'?'good':m==='a'?'bad':m==='w'?'info':'warn'}">${MARKS[m].l.toLowerCase()}</span>`:'';
 function attIndex(T){ const o={}; (T.att||[]).forEach(a=>{ (o[a.lid]=o[a.lid]||{})[a.sid]=a }); return o }
-function balances(T){ const b={}; (T.pays||[]).forEach(p=>b[p.sid]=(b[p.sid]||0)+Number(p.amount||0)); (T.att||[]).forEach(a=>{ if(a.mark==='p') b[a.sid]=(b[a.sid]||0)-Number(a.price||0) }); return b }
+function balances(T){ const b={}; (T.pays||[]).forEach(p=>b[p.sid]=(b[p.sid]||0)+Number(p.amount||0)); (T.att||[]).forEach(a=>{ b[a.sid]=(b[a.sid]||0)-Number(a.price||0) }); return b }
 const DEF_DISC = [{id:'d2c',name:'Відвідує два або більше курсів',pct:10},{id:'dhalf',name:'Оплата за пів року',pct:5},{id:'dyear',name:'Оплата за рік',pct:10},{id:'dfam',name:'Багатодітна родина',pct:15},{id:'dmil',name:'Військові пільги',pct:20}];
-function cfgOf(T){ const c={bonusFrom:5, bonusPer:25, defaultBase:300, premiumMode:'rate', discMax:50, discounts:DEF_DISC, orgName:'Robot School', unit:'', edrpou:'', cashier:'', receiptPrefix:''};
+function cfgOf(T){ const c={bonusFrom:5, bonusPer:25, defaultBase:300, premiumMode:'rate', discMax:50, discounts:DEF_DISC, orgName:'Robot School', unit:'', edrpou:'', cashier:'', receiptPrefix:'', packs:DEF_PACKS, trialPrice:0};
   const TXTK=['premiumMode','orgName','unit','edrpou','cashier','receiptPrefix'];
-  (T.cfg||[]).forEach(r=>{ if(!(r.id in c)) return; if(TXTK.includes(r.id)) c[r.id]=String(r.value==null?'':r.value); else if(r.id==='discounts'){ try{ const x=JSON.parse(r.value); if(Array.isArray(x)) c.discounts=x }catch(e){} } else c[r.id]=Number(r.value) }); return c }
+  (T.cfg||[]).forEach(r=>{ if(!(r.id in c)) return; if(TXTK.includes(r.id)) c[r.id]=String(r.value==null?'':r.value); else if(r.id==='discounts'||r.id==='packs'){ try{ const x=JSON.parse(r.value); if(Array.isArray(x)) c[r.id]=x }catch(e){} } else c[r.id]=Number(r.value) }); return c }
 /* знижки учня: [{id,name,pct}]; сума відсотків обмежена максимумом із налаштувань */
 function discOf(s){ try{ const x=typeof s.disc==='string'?JSON.parse(s.disc||'[]'):(s.disc||[]); return Array.isArray(x)?x:[] }catch(e){ return [] } }
 function discPct(T, s){ const c=cfgOf(T); return Math.max(0, Math.min(c.discMax, discOf(s||{}).reduce((t,x)=>t+Number(x.pct||0),0))) }
@@ -86,7 +108,7 @@ function rolePay(T, email, month){
 }
 /* оплата вчителю за одне заняття */
 function lessonPay(T, l, marks, c){
-  c=c||cfgOf(T); const present=Object.values(marks||{}).filter(a=>a.mark==='p'); const revenue=present.reduce((t,a)=>t+Number(a.price||0),0);
+  c=c||cfgOf(T); const present=Object.values(marks||{}).filter(a=>ATTENDED(a.mark)); const revenue=present.reduce((t,a)=>t+Number(a.price||0),0);
   const r=rateOf(T,l.teacher); const prem = c.premiumMode==='revenue' ? revenue*r.premium/100 : r.base*r.premium/100;
   const extra=Math.max(0, present.length-c.bonusFrom); const bonus=extra*c.bonusPer;
   return {present:present.length, revenue, base:r.base, prem:Math.round(prem), bonus, extra, total:Math.round(r.base+prem+bonus)};
@@ -104,23 +126,26 @@ function salaries(T, month){
 function monthReport(T, month){
   const [f,t]=monthRange(month), L=lessonsIn(T,f,t), ai=attIndex(T);
   const paid=(T.pays||[]).filter(p=>monthOf(p.date)===month).reduce((s,p)=>s+Number(p.amount||0),0);
-  const att=(T.att||[]).filter(a=>monthOf(a.date)===month); const visits=att.filter(a=>a.mark==='p').length, miss=att.filter(a=>a.mark==='a').length;
-  const charged=att.filter(a=>a.mark==='p').reduce((s,a)=>s+Number(a.price||0),0);
-  const gp={}; (T.groups||[]).forEach(g=>gp[g.id]=Number(g.price||0)); const discGiven=att.filter(a=>a.mark==='p').reduce((s,a)=>s+Math.max(0,(gp[a.gid]||0)-Number(a.price||0)),0);
+  const att=(T.att||[]).filter(a=>monthOf(a.date)===month); const visits=att.filter(a=>ATTENDED(a.mark)).length, miss=att.filter(a=>a.mark==='a').length, makeups=att.filter(a=>a.mark==='w').length, trials=att.filter(a=>a.mark==='t').length;
+  const charged=att.reduce((s,a)=>s+Number(a.price||0),0);
+  const gp={}; (T.groups||[]).forEach(g=>gp[g.id]=Number(g.price||0)); const discGiven=att.filter(a=>CHARGED(a.mark)).reduce((s,a)=>s+Math.max(0,(gp[a.gid]||0)-Number(a.price||0)),0);
   const sal=salaries(T,month); const salary=Object.values(sal).reduce((s,x)=>s+x.total,0);
   const ex=(T.exps||[]).filter(e=>monthOf(e.month||e.date)===month); const expenses=ex.reduce((s,e)=>s+Number(e.amount||0),0);
   const byCat={}; ex.forEach(e=>byCat[e.cat||'Інше']=(byCat[e.cat||'Інше']||0)+Number(e.amount||0));
   const held=L.filter(l=>isHeld(l,ai[l.id])).length, planned=L.filter(l=>!l.cancelled).length, cancelled=L.filter(l=>l.cancelled).length;
-  const byGroup=(T.groups||[]).filter(g=>g.status!=='archive').map(g=>{ const a=att.filter(x=>x.gid===g.id); const p=a.filter(x=>x.mark==='p').length;
-    return {g, visits:p, marks:a.length, pct:a.length?Math.round(100*p/a.length):null, revenue:a.filter(x=>x.mark==='p').reduce((s,x)=>s+Number(x.price||0),0)} });
-  return {month, paid, charged, discGiven, salary, expenses, byCat, visits, miss, attPct: visits+miss?Math.round(100*visits/(visits+miss)):null,
+  const byGroup=(T.groups||[]).filter(g=>g.status!=='archive').map(g=>{ const a=att.filter(x=>x.gid===g.id); const p=a.filter(x=>ATTENDED(x.mark)).length;
+    return {g, visits:p, marks:a.length, pct:a.length?Math.round(100*p/a.length):null, revenue:a.reduce((s,x)=>s+Number(x.price||0),0)} });
+  return {month, paid, charged, discGiven, salary, expenses, byCat, visits, miss, makeups, trials, attPct: visits+miss?Math.round(100*visits/(visits+miss)):null,
     held, planned, cancelled, byGroup, sal, profitCash: paid-salary-expenses, profitAccr: charged-salary-expenses, exps:ex};
 }
 /* сума абонемента: ціна уроку × кількість занять групи в місяці (без скасованих) */
 function abonement(T, s, month){
   const [f,t]=monthRange(month); const L=lessonsIn(T,f,t).filter(l=>!l.cancelled);
   return groupIds(s).map(gid=>{ const g=(T.groups||[]).find(x=>x.id===gid); if(!g||g.status==='archive') return null; const n=L.filter(l=>l.gid===gid).length;
-    const price=lessonPrice(T,g,s), full=Number(g.price||0); return {g, n, full, price, pct:discPct(T,s), sum:n*price, fullSum:n*full} }).filter(Boolean);
+    const price=lessonPrice(T,g,s), full=Number(g.price||0);
+    const pk=packsOf(T,s.id,gid).map(p=>packState(T,p)).filter(x=>x.left>0&&packStart(x.p)<=t);   // діючий абонемент на N уроків — місячна оплата не потрібна
+    if(pk.length) return {g, n, full, price, pct:discPct(T,s), sum:0, fullSum:n*full, pack:{left:pk.reduce((a,x)=>a+x.left,0), n:Number(pk[0].p.pack)}};
+    return {g, n, full, price, pct:discPct(T,s), sum:n*price, fullSum:n*full} }).filter(Boolean);
 }
 
 /* ======================================================================
@@ -153,8 +178,9 @@ const Local = {
       case 'crmSave': { const b=S.crm.branch, d=this.data(b); const rows=Array.isArray(r.rows)?r.rows:[r.row];
         rows.forEach(row=>{ row=Object.assign({},row); if(!row.id) row.id=r.table.slice(0,1)+Math.random().toString(36).slice(2,10);
           if(r.table==='students'){ if(!String(row.child||'').trim()||!String(row.parent||'').trim()||!normPhone(row.phone)) throw new Error('Для учня обов’язкові: ПІБ дитини, ПІБ одного з батьків і телефон.'); if(!row.created) row.created=new Date().toISOString() }
-          if(r.table==='att'){ const g=d.groups.find(x=>x.id===row.gid); row.price=row.mark==='p'?lessonPrice(d,g,d.students.find(x=>x.id===row.sid)):0; row.by=row.by||'адміністратор'; row.at=new Date().toISOString() }
+          if(r.table==='att'){ if(!MARKS[row.mark]) throw new Error('Невідома позначка відвідування.'); Object.assign(row, attPrice(d,row)); row.by=row.by||'адміністратор'; row.at=new Date().toISOString() }
           if(r.table==='pays'||r.table==='exps'){ row.amount=Number(row.amount)||0; row.by='адміністратор' }
+          if(r.table==='pays'){ row.pack=Math.max(0,Math.round(Number(row.pack)||0))||''; if(!row.pack){ row.gid=''; row.ppct='' } }
           if(r.table==='pays'&&!row.no){ const same=d.pays.find(x=>x.id===row.id); row.no=same&&same.no?same.no:d.pays.reduce((mx,x)=>Math.max(mx,Number(x.no)||0),0)+1 }
           if(r.table==='extra'){ row.hours=row.hours===''||row.hours==null?'':Number(row.hours); row.amount=row.amount===''||row.amount==null?'':Number(row.amount) }
           row.branch=b; const i=d[r.table].findIndex(x=>x.id===row.id); if(i>=0) d[r.table][i]=row; else d[r.table].push(row) });
@@ -166,7 +192,7 @@ const Local = {
         if(les.status==='cancelled') throw new Error('Заняття скасовано адміністратором.'); if(r.date>today()) throw new Error('Майбутнє заняття ще не можна відмітити.');
         Object.keys(r.marks||{}).forEach(sid=>{ const m=r.marks[sid]; const i=d.att.findIndex(a=>a.lid===lid&&a.sid===sid);
           if(!m){ if(i>=0) d.att.splice(i,1); return }
-          const row={id:i>=0?d.att[i].id:uid('a'),branch:b,lid,gid:g.id,date:r.date,sid,mark:m,price:m==='p'?lessonPrice(d,g,d.students.find(x=>x.id===sid)):0,by:u.email,at:new Date().toISOString()};
+          if(!MARKS[m]) return; const row={id:i>=0?d.att[i].id:uid('a'),branch:b,lid,gid:g.id,date:r.date,sid,mark:m,by:u.email,at:new Date().toISOString()}; Object.assign(row, attPrice(d,row));
           if(i>=0) d.att[i]=row; else d.att.push(row) });
         const row=Object.assign({},les,{id:lid,branch:b,gid:g.id,date:r.date,time:r.time,done:'так',note:r.note||les.note||'',by:u.email,at:new Date().toISOString()});
         const li=d.lessons.findIndex(l=>l.id===lid); if(li>=0) d.lessons[li]=row; else d.lessons.push(row); this.save(b,d); return {tables:this.scope(u)} }
@@ -178,7 +204,7 @@ const Local = {
       case 'mCrmSummary': { const m=curMonth(); return {month:m, branches:A().CFG.BRANCHES.map(b=>{ const d=this.load(b)||this.empty(); const bal=balances(d); const act=d.students.filter(s=>s.status!=='archive');
         return {branch:b, students:act.length, groups:d.groups.filter(g=>g.status!=='archive').length, teachers:this.teachers(b).length, debtors:act.filter(s=>(bal[s.id]||0)<0).length,
           debt:act.reduce((t,s)=>t+Math.min(0,bal[s.id]||0),0), paid:d.pays.filter(p=>monthOf(p.date)===m).reduce((t,p)=>t+Number(p.amount||0),0),
-          expenses:d.exps.filter(e=>monthOf(e.month||e.date)===m).reduce((t,e)=>t+Number(e.amount||0),0), visits:d.att.filter(a=>a.mark==='p'&&monthOf(a.date)===m).length} })} }
+          expenses:d.exps.filter(e=>monthOf(e.month||e.date)===m).reduce((t,e)=>t+Number(e.amount||0),0), visits:d.att.filter(a=>ATTENDED(a.mark)&&monthOf(a.date)===m).length} })} }
     }
     throw new Error('Невідома дія');
   },
@@ -284,17 +310,17 @@ function exportStudents(){
     if(x.from>x.to) throw new Error('Початковий місяць пізніше за кінцевий.');
     const months=[]; for(let m=x.from;m<=x.to;m=shiftMonth(m,1)) months.push(m); if(months.length>36) throw new Error('Не більше 36 місяців за раз.');
     const b=balances(T), list=T.students.filter(s=>s.status!=='archive'||(x.arch&&(b[s.id]||0)!==0)).sort((p,q)=>p.child.localeCompare(q.child,'uk'));
-    const head=['№','Учень','Дата народження','Батьки','Телефон','Групи','Знижка, %'].concat(months.map(monthTitle),['Сплачено за період','Сплачено всього','Списано за уроки (всього)','Відвідувань (всього)','Баланс','Стан','Статус']);
-    const rows=list.map((s,i)=>{ const pays=T.pays.filter(p=>p.sid===s.id), att=T.att.filter(a=>a.sid===s.id&&a.mark==='p');
+    const head=['№','Учень','Дата народження','Батьки','Телефон','Групи','Знижка, %'].concat(months.map(monthTitle),['Сплачено за період','Сплачено всього','Списано за уроки (всього)','Відвідувань (всього)','Баланс','Стан','Статус','Абонемент: залишок уроків']);
+    const rows=list.map((s,i)=>{ const pays=T.pays.filter(p=>p.sid===s.id), att=T.att.filter(a=>a.sid===s.id&&ATTENDED(a.mark));
       const per=months.map(m=>pays.filter(p=>(p.month||monthOf(p.date))===m).reduce((t,p)=>t+Number(p.amount||0),0));
       const bl=b[s.id]||0;
-      return [i+1,s.child,s.birth?s.birth.split('-').reverse().join('.'):'',s.parent,fmtPhone(s.phone),groupIds(s).map(gname).join(', '),discPct(T,s)||''].concat(per,[per.reduce((t,v)=>t+v,0),pays.reduce((t,p)=>t+Number(p.amount||0),0),att.reduce((t,a)=>t+Number(a.price||0),0),att.length,bl,bl<0?'Борг '+(-bl)+' грн':bl>0?'Залишок '+bl+' грн':'Розраховано',s.status==='archive'?'Архів':'Навчається']) });
+      return [i+1,s.child,s.birth?s.birth.split('-').reverse().join('.'):'',s.parent,fmtPhone(s.phone),groupIds(s).map(gname).join(', '),discPct(T,s)||''].concat(per,[per.reduce((t,v)=>t+v,0),pays.reduce((t,p)=>t+Number(p.amount||0),0),att.reduce((t,a)=>t+Number(a.price||0),0),att.length,bl,bl<0?'Борг '+(-bl)+' грн':bl>0?'Залишок '+bl+' грн':'Розраховано',s.status==='archive'?'Архів':'Навчається',studentPacks(T,s.id).reduce((t,x)=>t+x.left,0)||'']) });
     const n0=7, money=months.map((_,k)=>n0+k).concat([n0+months.length,n0+months.length+1,n0+months.length+2,n0+months.length+4]);
-    const tot=['','Разом','','','','',''].concat(months.map((_,k)=>rows.reduce((t,r)=>t+r[n0+k],0)),[rows.reduce((t,r)=>t+r[n0+months.length],0),rows.reduce((t,r)=>t+r[n0+months.length+1],0),rows.reduce((t,r)=>t+r[n0+months.length+2],0),rows.reduce((t,r)=>t+r[n0+months.length+3],0),rows.reduce((t,r)=>t+r[n0+months.length+4],0),'','']);
+    const tot=['','Разом','','','','',''].concat(months.map((_,k)=>rows.reduce((t,r)=>t+r[n0+k],0)),[rows.reduce((t,r)=>t+r[n0+months.length],0),rows.reduce((t,r)=>t+r[n0+months.length+1],0),rows.reduce((t,r)=>t+r[n0+months.length+2],0),rows.reduce((t,r)=>t+r[n0+months.length+3],0),rows.reduce((t,r)=>t+r[n0+months.length+4],0),'','','']);
     const pays=T.pays.filter(p=>{ const m=p.month||monthOf(p.date); return m>=x.from&&m<=x.to }).sort((p,q)=>String(p.date).localeCompare(q.date));
     xlsx(`uchni_oplaty_${D.branch.replace(/[^\wА-Яа-яІіЇїЄєҐґ]+/g,'_')}_${x.from}_${x.to}.xlsx`,[
-      {name:'Учні й оплати', header:1, freezeCols:2, cols:[5,28,12,24,18,28,9].concat(months.map(()=>13),[14,14,15,11,13,20,11]), money, rows:[head].concat(rows,[tot]), bold:ri=>ri===rows.length+1},
-      {name:'Платежі', header:1, cols:[9,12,28,26,14,16,18,26], money:[4], rows:[['№ квит.','Дата','Учень','Платник','Сума','За місяць','Спосіб','Коментар']].concat(pays.map(p=>[p.no||'',p.date,sname(p.sid),p.payer||'',Number(p.amount||0),monthTitle(p.month||monthOf(p.date)),p.method||'',p.note||'']))}
+      {name:'Учні й оплати', header:1, freezeCols:2, cols:[5,28,12,24,18,28,9].concat(months.map(()=>13),[14,14,15,11,13,20,11,14]), money, rows:[head].concat(rows,[tot]), bold:ri=>ri===rows.length+1},
+      {name:'Платежі', header:1, cols:[9,12,28,26,14,16,18,26], money:[4], rows:[['№ квит.','Дата','Учень','Платник','Сума','За місяць','Спосіб','Коментар']].concat(pays.map(p=>[p.no||'',p.date,sname(p.sid),p.payer||'',Number(p.amount||0),Number(p.pack)>0?'абонемент '+p.pack+' уроків':monthTitle(p.month||monthOf(p.date)),p.method||'',p.note||'']))}
     ]);
     A().toast('Файл Excel сформовано');
   }, 'Завантажити .xlsx');
@@ -320,7 +346,7 @@ function sumWords(n){
 function receiptHtml(p){
   const T=D.tables, c=cfgOf(T), st=T.students.find(x=>x.id===p.sid)||{child:'',groups:''}, dt=String(p.date||today()).split('-').reverse().join('.');
   const amt=Number(p.amount||0), grn=Math.floor(amt), kop=String(Math.round((amt-grn)*100)).padStart(2,'0');
-  const gl=groupIds(st).map(gname).join(', '); const what=`${p.basisDebt?'оплата боргу за абонемент':'оплата за абонемент'}${gl?' «'+gl+'»':''} за ${monthTitle(p.month||monthOf(p.date)).toLowerCase()}`;
+  const gl=Number(p.pack)>0&&p.gid?gname(p.gid):groupIds(st).map(gname).join(', '); const what=Number(p.pack)>0?`оплата абонемента на ${p.pack} ${p.pack%10===1&&p.pack%100!==11?'урок':[2,3,4].includes(p.pack%10)&&![12,13,14].includes(p.pack%100)?'уроки':'уроків'}${gl?' «'+gl+'»':''}${Number(p.ppct)?', знижка '+p.ppct+'%':''}`:`${p.basisDebt?'оплата боргу за абонемент':'оплата за абонемент'}${gl?' «'+gl+'»':''} за ${monthTitle(p.month||monthOf(p.date)).toLowerCase()}`;
   const no=(c.receiptPrefix?c.receiptPrefix+'/':'')+(p.no||'—'), who=p.payer||st.parent||st.child, child=st.child&&p.payer&&p.payer!==st.child?` (за учня: ${st.child})`:'';
   const e=esc;
   return `<!doctype html><html lang="uk"><head><meta charset="utf-8"><title>Квитанція № ${e(no)}</title><style>
@@ -408,7 +434,7 @@ function vHome(){
   const L=lessonsIn(T,td,addDays(td,6));
   const act=T.students.filter(s=>s.status!=='archive'); const debtors=act.filter(s=>(b[s.id]||0)<0).sort((x,y)=>b[x.id]-b[y.id]);
   const unmarked=lessonsIn(T,addDays(td,-14),addDays(td,-1)).filter(l=>!l.cancelled&&!isHeld(l,ai[l.id]));
-  const card=l=>{ const marks=ai[l.id]||{}, n=Object.keys(marks).length, pr=Object.values(marks).filter(a=>a.mark==='p').length;
+  const card=l=>{ const marks=ai[l.id]||{}, n=Object.keys(marks).length, pr=Object.values(marks).filter(a=>ATTENDED(a.mark)).length;
     return `<div class="card lcard" style="border-left:5px solid ${courseColor(l.g.cid)}"><div class="row"><b class="grow">${esc(l.g.name)}</b>${l.cancelled?'<span class="pill bad">Скасовано</span>':n?`<span class="pill good">Відмічено ${pr}/${n}</span>`:l.date<=td?'<span class="pill warn">Не відмічено</span>':''}</div>
       <div class="small muted">${l.date===td?'Сьогодні':WD_FULL[wdOf(l.date)-1]+', '+fmtDate(l.date)} · ${esc(l.time)} · ${esc(l.g.room||'')}</div>
       <div class="small">${esc(tname(l.teacher))}${l.sub?' <span class="pill warn">заміна</span>':''}</div>
@@ -466,7 +492,7 @@ function vStudents(p){
 function vStudent(p){
   const T=D.tables, s=T.students.find(x=>x.id===p[0]); if(!s) return vStudents([]);
   const b=balances(T)[s.id]||0, pays=T.pays.filter(x=>x.sid===s.id).sort((x,y)=>y.date.localeCompare(x.date)), att=T.att.filter(x=>x.sid===s.id).sort((x,y)=>y.date.localeCompare(x.date));
-  const ab=abonement(T,s,curMonth()), abN=abonement(T,s,shiftMonth(curMonth(),1));
+  const ab=abonement(T,s,curMonth()), abN=abonement(T,s,shiftMonth(curMonth(),1)), packs=studentPacks(T,s.id);
   crmShell('students',`<a class="btn sm ghost" href="#/crm/students">← Учні</a>
     <div class="row" style="margin-top:12px">${avatar(s.child,s.id)}<h1 style="margin:0" class="grow">${esc(s.child)}</h1>${bal(b)}</div>
     <div class="grid g2" style="margin-top:14px"><div class="card"><div class="kv"><span class="muted">Вік</span><span>${esc(age(s.birth)||'—')} ${s.birth?'('+esc(s.birth.split('-').reverse().join('.'))+')':''}</span>
@@ -474,30 +500,49 @@ function vStudent(p){
       <span class="muted">Дод. контакт</span><span>${esc(s.phone2||'—')}</span><span class="muted">Групи</span><span>${groupIds(s).map(g=>esc(gname(g))).join(', ')||'—'}</span>
       <span class="muted">Знижка</span><span>${discOf(s).length?discOf(s).map(x=>esc(x.name)+' — '+x.pct+'%').join('<br>')+(discOf(s).length>1||discPct(T,s)!==discOf(s).reduce((t,x)=>t+Number(x.pct||0),0)?`<br><b>разом ${discPct(T,s)}%</b>`:''):'немає'}</span>
       <span class="muted">Примітка</span><span>${esc(s.note||'—')}</span><span class="muted">Статус</span><span>${s.status==='archive'?'Архів':'Навчається'}</span></div>
-      <div class="row" style="margin-top:12px"><button class="btn sm" id="pay">Внести оплату</button><button class="btn sm ghost" id="ed">Редагувати</button><span class="grow"></span><button class="btn sm ghost" id="rm">Видалити</button></div></div>
-      <div class="card"><h3 style="margin-top:0">Абонемент</h3>${[[curMonth(),ab],[shiftMonth(curMonth(),1),abN]].map(([m,a])=>`<p class="small"><b>${monthTitle(m)}:</b> ${a.map(x=>`${esc(x.g.name)} — ${x.n} занять × ${x.pct?`<s>${UAH(x.full)}</s> `:''}${UAH(x.price)} = <b>${UAH(x.sum)}</b>`).join('<br>')||'немає груп'}${a.length>1?`<br>Разом: <b>${UAH(a.reduce((t,x)=>t+x.sum,0))}</b>`:''}</p>`).join('')}
-      <p class="tiny muted">За кожне відвідане заняття з балансу списується ціна уроку групи з урахуванням знижки. Пропуски не списуються. Нова знижка діє для занять, відмічених після її зміни.</p></div></div>
-    <div class="grid g2" style="margin-top:16px"><div class="card" style="padding:0;overflow:auto"><h3 style="margin:14px 16px">Оплати</h3><table class="prose ptable" style="width:100%;margin:0"><tbody>${pays.map(x=>`<tr><td>${esc(x.date)}</td><td>${monthTitle(x.month||monthOf(x.date))}</td><td>${esc(x.method||'')}</td><td style="text-align:right"><b>${UAH(x.amount)}</b>${x.payer?`<div class="tiny">${esc(x.payer)}</div>`:''}</td><td style="white-space:nowrap"><button class="btn sm ghost" data-rc="${x.id}" title="Квитанція">🧾</button><button class="btn sm ghost" data-dp="${x.id}" title="Видалити оплату">✕</button></td></tr>`).join('')||'<tr><td class="muted">Оплат немає</td></tr>'}</tbody></table></div>
-      <div class="card" style="padding:0;overflow:auto;max-height:420px"><h3 style="margin:14px 16px">Відвідування (${att.filter(a=>a.mark==='p').length} з ${att.length})</h3><table class="prose ptable" style="width:100%;margin:0"><tbody>${att.map(a=>`<tr><td>${esc(a.date)}</td><td>${esc(gname(a.gid))}</td><td>${a.mark==='p'?'<span class="pill good">присутній</span>':'<span class="pill bad">відсутній</span>'}</td><td style="text-align:right">${a.mark==='p'?'−'+UAH(a.price):''}</td></tr>`).join('')||'<tr><td class="muted">Ще не відвідував</td></tr>'}</tbody></table></div></div>`);
-  $('#pay').onclick=()=>payModal(s); $('#ed').onclick=()=>modal('Редагування учня', studentForm(s), async x=>{ await save('students', readStudent(x,s)); A().toast('Збережено'); reroute() });
+      <div class="row" style="margin-top:12px"><button class="btn sm" id="pay">Внести оплату</button><button class="btn sm ghost" id="pack">Продати абонемент</button><button class="btn sm ghost" id="ed">Редагувати</button><span class="grow"></span><button class="btn sm ghost" id="rm">Видалити</button></div></div>
+      <div class="card"><h3 style="margin-top:0">Абонемент</h3>${[[curMonth(),ab],[shiftMonth(curMonth(),1),abN]].map(([m,a])=>`<p class="small"><b>${monthTitle(m)}:</b> ${a.map(x=>x.pack?`${esc(x.g.name)} — оплачено абонементом (залишок ${x.pack.left} уроків)`:`${esc(x.g.name)} — ${x.n} занять × ${x.pct?`<s>${UAH(x.full)}</s> `:''}${UAH(x.price)} = <b>${UAH(x.sum)}</b>`).join('<br>')||'немає груп'}${a.length>1?`<br>Разом: <b>${UAH(a.reduce((t,x)=>t+x.sum,0))}</b>`:''}</p>`).join('')}
+      ${packs.length?`<h3>Абонементи на уроки</h3>${packs.map(x=>`<p class="small"><b>${x.p.pack} уроків</b> · ${esc(x.p.gid?gname(x.p.gid):'будь-яка група')} · з ${esc(fmtDate(packStart(x.p)))} · ${UAH(x.p.amount)}${Number(x.p.ppct)?` (знижка ${x.p.ppct}%)`:''}<br>використано ${x.used}, <b>залишилось ${x.left}</b> · ${UAH(x.per)} за урок ${x.left?'<span class="pill good">діє</span>':'<span class="pill">завершено</span>'}</p>`).join('')}`:''}
+      <p class="tiny muted">За кожне заняття з позначкою «присутній» або «відпрацював» з балансу списується ціна уроку групи з урахуванням знижки (за абонементом на уроки — ціна уроку в абонементі). «Не було» не списується; пробний урок — за ціною пробного з «Налаштувань» (за замовчуванням безкоштовно).</p></div></div>
+    <div class="grid g2" style="margin-top:16px"><div class="card" style="padding:0;overflow:auto"><h3 style="margin:14px 16px">Оплати</h3><table class="prose ptable" style="width:100%;margin:0"><tbody>${pays.map(x=>`<tr><td>${esc(x.date)}</td><td>${Number(x.pack)>0?`абонемент ${x.pack} ур.`:monthTitle(x.month||monthOf(x.date))}</td><td>${esc(x.method||'')}</td><td style="text-align:right"><b>${UAH(x.amount)}</b>${x.payer?`<div class="tiny">${esc(x.payer)}</div>`:''}</td><td style="white-space:nowrap"><button class="btn sm ghost" data-rc="${x.id}" title="Квитанція">🧾</button><button class="btn sm ghost" data-dp="${x.id}" title="Видалити оплату">✕</button></td></tr>`).join('')||'<tr><td class="muted">Оплат немає</td></tr>'}</tbody></table></div>
+      <div class="card" style="padding:0;overflow:auto;max-height:420px"><h3 style="margin:14px 16px">Відвідування (${att.filter(a=>ATTENDED(a.mark)).length} з ${att.length})</h3><table class="prose ptable" style="width:100%;margin:0"><tbody>${att.map(a=>`<tr><td>${esc(a.date)}</td><td>${esc(gname(a.gid))}</td><td>${markPill(a.mark)}${a.pk?' <span class="tiny">абонемент</span>':''}</td><td style="text-align:right">${Number(a.price)?'−'+UAH(a.price):''}</td></tr>`).join('')||'<tr><td class="muted">Ще не відвідував</td></tr>'}</tbody></table></div></div>`);
+  $('#pay').onclick=()=>payModal(s); $('#pack').onclick=()=>payModal(s,null,'pack'); $('#ed').onclick=()=>modal('Редагування учня', studentForm(s), async x=>{ await save('students', readStudent(x,s)); A().toast('Збережено'); reroute() });
   $('#rm').onclick=async()=>{ if(!confirm('Видалити учня разом з оплатами й відвідуваннями? Краще перевести в архів, щоб зберегти історію.')) return;
     await del('att',T.att.filter(a=>a.sid===s.id).map(a=>a.id)); await del('pays',T.pays.filter(a=>a.sid===s.id).map(a=>a.id)); await del('students',s.id); location.hash='#/crm/students' };
   $$('[data-dp]').forEach(x=>x.onclick=async()=>{ if(!confirm('Видалити оплату?')) return; await del('pays',x.dataset.dp); reroute() });
   $$('[data-rc]').forEach(x=>x.onclick=()=>showReceipt(T.pays.find(p=>p.id===x.dataset.rc)));
 }
-function payModal(s, month){
-  const m=month||curMonth(), ab=abonement(D.tables,s,m), sum=ab.reduce((t,x)=>t+x.sum,0), b=balances(D.tables)[s.id]||0;
-  modal('Оплата: '+s.child, `<p class="small muted">${ab.map(x=>`${esc(x.g.name)}: ${x.n} занять × ${UAH(x.price)} = ${UAH(x.sum)}`).join('<br>')||'Учень не записаний у групу.'}${ab.length&&ab[0].pct?`<br>Знижка ${ab[0].pct}% (${esc(discOf(s).map(x=>x.name).join(', '))}) — без знижки було б ${UAH(ab.reduce((t,x)=>t+x.fullSum,0))}`:''}<br>Поточний баланс: ${bal(b)}</p>
-    <div class="grid g2" style="gap:10px"><div class="field"><label>Сума, грн</label><input class="input" name="amount" type="number" min="1" step="1" required value="${sum||''}"></div>
-    <div class="field"><label>За місяць (абонемент)</label><input class="input" name="month" type="month" required value="${m}"></div>
+function payModal(s, month, kind){
+  const T=D.tables, c=cfgOf(T), m=month||curMonth(), ab=abonement(T,s,m), sum=ab.reduce((t,x)=>t+x.sum,0), b=balances(T)[s.id]||0;
+  const gs=groupIds(s).map(id=>T.groups.find(g=>g.id===id)).filter(g=>g&&g.status!=='archive'), dp=discPct(T,s);
+  const packs=c.packs.filter(x=>Number(x.n)>0);
+  const w=modal((kind==='pack'?'Абонемент: ':'Оплата: ')+s.child, `<div class="field"><label>Що оплачують</label><select class="input" name="kind" id="pk-kind"><option value="month">Оплата за місяць (за розкладом)</option>${packs.map(x=>`<option value="${x.n}" ${kind==='pack'&&x===packs[0]?'selected':''}>Абонемент на ${x.n} уроків · знижка ${x.pct}%</option>`).join('')}</select></div>
+    <div id="pk-month"><p class="small muted">${ab.map(x=>x.pack?`${esc(x.g.name)}: оплачено абонементом, залишок ${x.pack.left} уроків`:`${esc(x.g.name)}: ${x.n} занять × ${UAH(x.price)} = ${UAH(x.sum)}`).join('<br>')||'Учень не записаний у групу.'}${ab.length&&ab[0].pct?`<br>Знижка ${ab[0].pct}% (${esc(discOf(s).map(x=>x.name).join(', '))}) — без знижки було б ${UAH(ab.reduce((t,x)=>t+x.fullSum,0))}`:''}</p></div>
+    <div id="pk-pack" style="display:none"><div class="grid g2" style="gap:10px"><div class="field"><label>Група</label><select class="input" name="gid" id="pk-g">${gs.map(g=>`<option value="${g.id}">${esc(g.name)} · ${UAH(g.price)}/урок</option>`).join('')||'<option value="">— учень не в групі —</option>'}</select></div>
+      <div class="field"><label>Знижка абонемента, %</label><input class="input" name="ppct" id="pk-pct" type="number" min="0" max="100" step="0.5"><div class="tiny muted">За замовчуванням — з «Налаштувань»; можна змінити для цього продажу.</div></div></div>
+      <label class="row small" style="gap:6px;margin-bottom:6px"><input type="checkbox" name="addp" id="pk-add" ${dp?'checked':''}> додати особисту знижку учня${dp?` (${dp}%: ${esc(discOf(s).map(x=>x.name).join(', '))})`:' (немає)'}</label>
+      <p class="small" id="pk-calc"></p></div>
+    <p class="small muted">Поточний баланс: ${bal(b)}</p>
+    <div class="grid g2" style="gap:10px"><div class="field"><label>Сума, грн</label><input class="input" name="amount" id="pk-sum" type="number" min="1" step="1" required value="${sum||''}"></div>
+    <div class="field"><label id="pk-ml">За місяць (абонемент)</label><input class="input" name="month" type="month" required value="${m}"></div>
     <div class="field"><label>Дата оплати</label><input class="input" name="date" type="date" required value="${today()}"></div>
     <div class="field"><label>Спосіб</label><select class="input" name="method">${PAY_METHODS.map(x=>`<option>${x}</option>`).join('')}</select></div></div>
     <div class="field"><label>Платник — від кого прийнято оплату *</label><input class="input" name="payer" required value="${esc(s.parent||'')}" placeholder="ПІБ того, хто вносить оплату"><div class="tiny muted">Це ім’я буде у квитанції в полі «Прийнято від».</div></div>
-    <div class="field"><label>Коментар</label><input class="input" name="note" value="абонемент"></div>
+    <div class="field"><label>Коментар</label><input class="input" name="note" id="pk-note" value="абонемент"></div>
     <label class="row small" style="gap:6px"><input type="checkbox" name="rc" checked> одразу сформувати квитанцію</label>`, async x=>{
       if(!(Number(x.amount)>0)) throw new Error('Вкажіть суму.'); if(!x.payer.trim()) throw new Error('Вкажіть платника.');
-      const id=uid('p'); await save('pays',{id,sid:s.id,amount:Number(x.amount),month:x.month,date:x.date,method:x.method,note:x.note,payer:x.payer.trim().replace(/\s+/g,' ')});
-      A().toast('Оплату внесено'); reroute(); const p=D.tables.pays.find(q=>q.id===id); if(x.rc&&p) showReceipt(Object.assign({basisDebt:b<0},p)) }, 'Зарахувати');
+      const n=x.kind==='month'?0:Number(x.kind); if(n&&!x.gid) throw new Error('Абонемент продається на групу — спершу запишіть учня в групу.');
+      const id=uid('p'); await save('pays',Object.assign({id,sid:s.id,amount:Number(x.amount),month:x.month,date:x.date,method:x.method,note:x.note,payer:x.payer.trim().replace(/\s+/g,' ')}, n?{pack:n,gid:x.gid,ppct:Number(calc().pct)}:{}));
+      A().toast(n?'Абонемент продано':'Оплату внесено'); reroute(); const p=D.tables.pays.find(q=>q.id===id); if(x.rc&&p) showReceipt(Object.assign({basisDebt:!n&&b<0},p)) }, 'Зарахувати');
+  const K=$('#pk-kind',w), G=$('#pk-g',w), P=$('#pk-pct',w), AD=$('#pk-add',w), SUM=$('#pk-sum',w);
+  const calc=()=>{ const n=Number(K.value)||0, g=T.groups.find(x=>x.id===G.value)||{price:0}, pct=Math.max(0,Math.min(c.discMax,(Number(P.value)||0)+(AD.checked?dp:0)));
+    const per=Math.round(Number(g.price||0)*(100-pct))/100; return {n,g,pct,per,total:Math.round(per*n)} };
+  const show=()=>{ const n=Number(K.value)||0; $('#pk-month',w).style.display=n?'none':''; $('#pk-pack',w).style.display=n?'':'none';
+    $('#pk-ml',w).textContent=n?'Діє з місяця':'За місяць (абонемент)';
+    if(n){ const r=calc(); $('#pk-calc',w).innerHTML=`${n} уроків × ${r.pct?`<s>${UAH(r.g.price)}</s> `:''}${UAH(r.per)} = <b>${UAH(r.total)}</b>${r.pct?` · знижка ${r.pct}%${r.pct>=c.discMax?' (максимум)':''}`:''}<br><span class="tiny muted">Відвідані заняття групи списуються за ціною уроку в абонементі, доки не закінчаться ${n} уроків.</span>`; SUM.value=r.total; $('#pk-note',w).value='абонемент на '+n+' уроків' }
+    else { SUM.value=sum||''; $('#pk-note',w).value='абонемент' } };
+  K.onchange=()=>{ const pk=packs.find(x=>String(x.n)===K.value); if(pk) P.value=pk.pct; show() }; [G,P,AD].forEach(e=>e.oninput=e.onchange=show);
+  const pk0=packs.find(x=>String(x.n)===K.value); if(pk0) P.value=pk0.pct; show();
 }
 
 /* ---------- Групи й розклад ---------- */
@@ -547,7 +592,7 @@ function vGroups(p){
 }
 function lessonModal(l){
   if(!l) return; const ai=attIndex(D.tables)[l.id]||{};
-  modal(`${l.g.name} · ${fmtDate(l.date)}, ${l.time}`, `<p class="small muted">Учитель групи: <b>${esc(tname(l.groupTeacher))}</b>${Object.keys(ai).length?` · відмічено ${Object.values(ai).filter(a=>a.mark==='p').length} з ${Object.keys(ai).length}`:''}</p>
+  modal(`${l.g.name} · ${fmtDate(l.date)}, ${l.time}`, `<p class="small muted">Учитель групи: <b>${esc(tname(l.groupTeacher))}</b>${Object.keys(ai).length?` · відмічено ${Object.values(ai).filter(a=>ATTENDED(a.mark)).length} з ${Object.keys(ai).length}`:''}</p>
     <div class="field"><label>Проводить (заміна)</label><select class="input" name="sub"><option value="">${esc(tname(l.groupTeacher))} (учитель групи)</option>${D.teachers.filter(t=>t.email!==l.groupTeacher).map(t=>`<option value="${esc(t.email)}" ${t.email===l.sub?'selected':''}>${esc(t.fio)}</option>`).join('')}</select>
       <div class="tiny muted">Оплата за це заняття нараховується тому, хто його проводить.</div></div>
     <div class="field"><label>Статус</label><select class="input" name="status"><option value="${l.extra?'extra':''}">${l.extra?'Разове заняття':'Відбувається'}</option><option value="cancelled" ${l.cancelled?'selected':''}>Скасовано (не списується, не оплачується)</option></select></div>
@@ -563,20 +608,27 @@ function vAttendance(p){
   if(!gid) return crmShell('attendance','<h1>Відвідування</h1><div class="card"><p class="muted">Створіть групу в розділі «Групи й розклад».</p></div>');
   const g=T.groups.find(x=>x.id===gid), [f,t]=monthRange(m), L=lessonsIn(T,f,t).filter(l=>l.gid===gid), ai=attIndex(T);
   const st=T.students.filter(s=>groupIds(s).includes(gid)||T.att.some(a=>a.gid===gid&&a.sid===s.id&&monthOf(a.date)===m)).sort((a,b)=>a.child.localeCompare(b.child,'uk'));
-  const cell=(l,s)=>{ const a=(ai[l.id]||{})[s.id]; const mk=a?a.mark:''; return `<td><button class="ac ${mk}" data-l="${esc(l.id)}" data-s="${s.id}" ${l.cancelled?'disabled':''} title="${a?esc((a.by==='адміністратор'?'адміністратор':tname(a.by))):''}">${mk==='p'?'✓':mk==='a'?'Н':''}</button></td>` };
-  crmShell('attendance',`<h1>Відвідування</h1><p class="muted">Клітинка: порожньо → ✓ присутній → Н відсутній → порожньо. Учитель відмічає заняття у своєму кабінеті; тут ви можете виправити будь-яку позначку. За «✓» з балансу учня списується ${UAH(g.price)} (зі знижкою учня — менше).</p>
+  const cell=(l,s)=>{ const a=(ai[l.id]||{})[s.id]; const mk=a?a.mark:''; return `<td><button class="ac ${mk}" data-l="${esc(l.id)}" data-s="${s.id}" ${l.cancelled?'disabled':''} title="${a?esc(MARKS[mk].l+' · '+(a.by==='адміністратор'?'адміністратор':tname(a.by))+(Number(a.price)?' · −'+a.price+' грн':'')+(a.pk?' (абонемент)':'')):''}">${MARKS[mk]?MARKS[mk].s:''}</button></td>` };
+  crmShell('attendance',`<h1>Відвідування</h1><p class="muted">Натисніть клітинку й оберіть статус. Учитель відмічає заняття у своєму кабінеті; тут ви можете виправити будь-яку позначку. За «присутній» і «відпрацював» з балансу учня списується ${UAH(g.price)} (зі знижкою або за абонементом — менше); «не було» не списується; пробний урок — ${cfgOf(T).trialPrice?UAH(cfgOf(T).trialPrice):'безкоштовно'}.</p>
+    <div class="row small" style="gap:12px;margin-bottom:8px">${MARK_ORDER.map(k=>`<span><span class="ac ${k}" style="display:inline-grid;place-items:center;width:26px;height:22px;cursor:default">${MARKS[k].s}</span> ${MARKS[k].l}</span>`).join('')}</div>
     <div class="row" style="gap:10px"><select class="input" id="gs" style="max-width:320px">${T.groups.map(x=>`<option value="${x.id}" ${x.id===gid?'selected':''}>${esc(x.name)}</option>`).join('')}</select><span class="grow"></span>${monthNav(m,'#/crm/attendance/'+gid)}</div>
     <div class="card" style="padding:0;overflow:auto;margin-top:12px"><table class="prose ptable att" style="margin:0"><thead><tr><th>Учень · ${st.length}</th>${L.map(l=>`<th><button class="lh ${l.cancelled?'off':''}" data-les="${esc(l.id)}">${WD[wdOf(l.date)-1]}<br>${l.date.slice(8)}.${l.date.slice(5,7)}<br><span class="tiny">${esc(l.time)}</span>${l.sub?'<br><span class="pill warn" style="font-size:10px">заміна</span>':''}</button></th>`).join('')}<th>%</th></tr></thead>
-    <tbody>${st.map(s=>{ const ms=L.map(l=>(ai[l.id]||{})[s.id]).filter(Boolean); const pr=ms.filter(a=>a.mark==='p').length;
+    <tbody>${st.map(s=>{ const ms=L.map(l=>(ai[l.id]||{})[s.id]).filter(Boolean); const pr=ms.filter(a=>ATTENDED(a.mark)).length;
       return `<tr><td style="white-space:nowrap"><a href="#/crm/student/${s.id}">${esc(s.child)}</a></td>${L.map(l=>cell(l,s)).join('')}<td>${ms.length?`<span class="pill ${pr/ms.length>=.8?'good':pr/ms.length>=.5?'warn':'bad'}">${Math.round(100*pr/ms.length)}%</span>`:''}</td></tr>` }).join('')}
-      <tr><td class="tiny muted">Присутні</td>${L.map(l=>{ const v=Object.values(ai[l.id]||{}); return `<td class="tiny">${l.cancelled?'скас.':v.length?v.filter(a=>a.mark==='p').length+'/'+v.length:''}</td>` }).join('')}<td></td></tr></tbody></table></div>
+      <tr><td class="tiny muted">Присутні</td>${L.map(l=>{ const v=Object.values(ai[l.id]||{}); return `<td class="tiny">${l.cancelled?'скас.':v.length?v.filter(a=>ATTENDED(a.mark)).length+'/'+v.length:''}</td>` }).join('')}<td></td></tr></tbody></table></div>
     ${L.length?'':'<p class="muted">У цьому місяці занять немає.</p>'}
     <p class="tiny muted">Натисніть на дату, щоб призначити заміну, скасувати заняття або додати тему.</p>`);
   $('#gs').onchange=e=>location.hash='#/crm/attendance/'+e.target.value+'/'+m;
   $$('[data-les]').forEach(b=>b.onclick=()=>lessonModal(L.find(l=>l.id===b.dataset.les)));
-  $$('button.ac').forEach(b=>b.onclick=async()=>{ const l=L.find(x=>x.id===b.dataset.l), sid=b.dataset.s, a=(ai[l.id]||{})[sid], cur=a?a.mark:'', nx=cur===''?'p':cur==='p'?'a':'';
-    b.disabled=true; try{ if(!nx) await del('att',a.id); else await save('att',{id:a?a.id:undefined,lid:l.id,gid:l.gid,date:l.date,sid,mark:nx,by:'адміністратор'});
-      if(!l.done) await save('lessons',Object.assign({},l.row||{},{id:l.id,gid:l.gid,date:l.date,time:l.time,sub:l.sub,status:l.status,note:l.note,done:'так'})); vAttendance([gid,m]) }catch(e){ A().toast(e.message); b.disabled=false } });
+  const menu=b=>{ $$('.acm').forEach(x=>x.remove()); const l=L.find(x=>x.id===b.dataset.l), a=(ai[l.id]||{})[b.dataset.s], cur=a?a.mark:'';
+    const mm=document.createElement('div'); mm.className='acm card'; mm.innerHTML=MARK_ORDER.map(k=>`<button type="button" data-m="${k}" class="${k===cur?'on':''}"><span class="ac ${k}">${MARKS[k].s}</span>${MARKS[k].l}</button>`).join('')+(cur?'<button type="button" data-m="" class="clr">Очистити позначку</button>':'');
+    document.body.appendChild(mm); const r=b.getBoundingClientRect(); mm.style.top=(window.scrollY+r.bottom+4)+'px'; mm.style.left=Math.max(8,Math.min(window.scrollX+r.left-60, window.scrollX+document.documentElement.clientWidth-mm.offsetWidth-8))+'px';
+    $$('[data-m]',mm).forEach(x=>x.onclick=()=>{ mm.remove(); setMark(b, x.dataset.m) });
+    setTimeout(()=>document.addEventListener('click',function h(e){ if(!mm.contains(e.target)){ mm.remove(); document.removeEventListener('click',h) } }),0) };
+  $$('button.ac[data-l]').forEach(b=>b.onclick=()=>menu(b));
+  const setMark=async(b, nx)=>{ const l=L.find(x=>x.id===b.dataset.l), sid=b.dataset.s, a=(ai[l.id]||{})[sid], cur=a?a.mark:''; if(nx===cur) return;
+    if(!nx&&!a) return; b.disabled=true; try{ if(!nx) await del('att',a.id); else await save('att',{id:a?a.id:undefined,lid:l.id,gid:l.gid,date:l.date,sid,mark:nx,by:'адміністратор'});
+      if(!l.done) await save('lessons',Object.assign({},l.row||{},{id:l.id,gid:l.gid,date:l.date,time:l.time,sub:l.sub,status:l.status,note:l.note,done:'так'})); vAttendance([gid,m]) }catch(e){ A().toast(e.message); b.disabled=false } };
 }
 
 /* ---------- Оплати й борги ---------- */
@@ -584,20 +636,20 @@ function vPayments(p){
   const T=D.tables, m=p[0]&&/^\d{4}-\d\d$/.test(p[0])?p[0]:curMonth(), flt=p[1]||'', b=balances(T), R=monthReport(T,m);
   const act=T.students.filter(s=>s.status!=='archive'||(b[s.id]||0)<0);
   const rows=act.map(s=>{ const ab=abonement(T,s,m), due=ab.reduce((t,x)=>t+x.sum,0), paid=T.pays.filter(x=>x.sid===s.id&&(x.month||monthOf(x.date))===m).reduce((t,x)=>t+Number(x.amount),0);
-    const ch=T.att.filter(a=>a.sid===s.id&&a.mark==='p'&&monthOf(a.date)===m); return {s,ab,due,paid,visits:ch.length,charged:ch.reduce((t,a)=>t+Number(a.price),0),bal:b[s.id]||0} })
+    const ch=T.att.filter(a=>a.sid===s.id&&ATTENDED(a.mark)&&monthOf(a.date)===m); return {s,ab,due,paid,visits:ch.length,charged:ch.reduce((t,a)=>t+Number(a.price),0),bal:b[s.id]||0} })
     .filter(r=>flt==='debt'?r.bal<0:flt==='unpaid'?r.due>0&&r.paid<r.due:true).sort((a,b)=>a.bal-b.bal);
   const debt=act.filter(s=>(b[s.id]||0)<0), totalDebt=debt.reduce((t,s)=>t+b[s.id],0), prepaid=act.reduce((t,s)=>t+Math.max(0,b[s.id]||0),0);
   const pays=T.pays.filter(x=>monthOf(x.date)===m).sort((x,y)=>y.date.localeCompare(x.date));
-  crmShell('payments',`<h1>Оплати й борги</h1><p class="muted">Оплата вноситься за місяць (абонемент) і зараховується на баланс учня. Сума абонемента = ціна уроку × кількість занять групи в місяці, тому в різні місяці вона різна. За кожне відвідане заняття з балансу списується ціна уроку; якщо дитина була на занятті, а грошей немає — баланс стає від’ємним і учень потрапляє до боржників.</p>
+  crmShell('payments',`<h1>Оплати й борги</h1><p class="muted">Оплата вноситься за місяць або абонементом на 12, 24 чи 42 уроки (зі знижкою) і зараховується на баланс учня. Сума абонемента = ціна уроку × кількість занять групи в місяці, тому в різні місяці вона різна. За кожне відвідане заняття з балансу списується ціна уроку; якщо дитина була на занятті, а грошей немає — баланс стає від’ємним і учень потрапляє до боржників.</p>
     ${monthNav(m,'#/crm/payments')}
     <div class="grid g4" style="margin-top:12px">${kpi('Оплачено за '+MONTHS[Number(m.slice(5))-1].toLowerCase(),UAH(R.paid),`платежів: ${pays.length}`,'good')}${kpi('Списано за уроки',UAH(R.charged),`відвідувань: ${R.visits}`)}${kpi('Борг зараз',UAH(-totalDebt),`боржників: ${debt.length}`,debt.length?'bad':'')}${kpi('Передоплата на балансах',UAH(prepaid),'залишки учнів')}</div>
     <div class="filters" style="margin-top:14px"><div class="seg"><a class="${flt?'':'on'}" href="#/crm/payments/${m}">Усі</a><a class="${flt==='debt'?'on':''}" href="#/crm/payments/${m}/debt">Боржники</a><a class="${flt==='unpaid'?'on':''}" href="#/crm/payments/${m}/unpaid">Не сплатили абонемент</a></div><input class="input" id="q" placeholder="Знайти учня" style="max-width:280px"><span class="grow"></span><button class="btn sm" id="xl">⬇ Excel: учні й оплати</button><button class="btn sm ghost" id="csv">CSV</button></div>
     <div class="card" style="padding:0;overflow:auto"><table class="prose ptable" style="width:100%;margin:0" id="pt"><thead><tr><th>Учень</th><th>Групи</th><th>Абонемент</th><th>Сплачено за місяць</th><th>Відвідав / списано</th><th>Баланс</th><th></th></tr></thead><tbody>
-    ${rows.map(r=>`<tr data-q="${esc(r.s.child.toLowerCase())}"><td>${avatar(r.s.child,r.s.id)} <a href="#/crm/student/${r.s.id}">${esc(r.s.child)}</a><div class="tiny">${esc(r.s.parent)} · ${esc(fmtPhone(r.s.phone))}</div></td><td class="small">${r.ab.map(x=>esc(x.g.name)+' ('+x.n+' зан.)').join('<br>')||'—'}</td><td>${r.due?UAH(r.due):'—'}${discPct(T,r.s)?`<div class="tiny">знижка ${discPct(T,r.s)}%</div>`:''}</td><td>${r.paid?`<b>${UAH(r.paid)}</b>`:'<span class="muted">—</span>'}</td><td class="small">${r.visits} / ${UAH(r.charged)}</td><td>${bal(r.bal)}</td><td><button class="btn sm" data-pay="${r.s.id}">Внести</button></td></tr>`).join('')||'<tr><td class="muted">Немає учнів за фільтром</td></tr>'}</tbody></table></div>
+    ${rows.map(r=>`<tr data-q="${esc(r.s.child.toLowerCase())}"><td>${avatar(r.s.child,r.s.id)} <a href="#/crm/student/${r.s.id}">${esc(r.s.child)}</a><div class="tiny">${esc(r.s.parent)} · ${esc(fmtPhone(r.s.phone))}</div></td><td class="small">${r.ab.map(x=>esc(x.g.name)+(x.pack?` <span class="pill good">абонемент: залишок ${x.pack.left}</span>`:' ('+x.n+' зан.)')).join('<br>')||'—'}</td><td>${r.due?UAH(r.due):'—'}${discPct(T,r.s)?`<div class="tiny">знижка ${discPct(T,r.s)}%</div>`:''}</td><td>${r.paid?`<b>${UAH(r.paid)}</b>`:'<span class="muted">—</span>'}</td><td class="small">${r.visits} / ${UAH(r.charged)}</td><td>${bal(r.bal)}</td><td style="white-space:nowrap"><button class="btn sm" data-pay="${r.s.id}">Внести</button> <button class="btn sm ghost" data-pk="${r.s.id}" title="Продати абонемент на 12 / 24 / 42 уроки">Абонемент</button></td></tr>`).join('')||'<tr><td class="muted">Немає учнів за фільтром</td></tr>'}</tbody></table></div>
     <h2 style="margin-top:22px">Платежі за ${monthTitle(m).toLowerCase()}</h2>
-    <div class="card" style="padding:0;overflow:auto"><table class="prose ptable" style="width:100%;margin:0"><tbody>${pays.map(x=>`<tr><td>${x.no?'№ '+esc(x.no)+'<br>':''}${esc(x.date)}</td><td>${esc(sname(x.sid))}${x.payer?`<div class="tiny">платник: ${esc(x.payer)}</div>`:''}</td><td class="small">за ${monthTitle(x.month||monthOf(x.date)).toLowerCase()} · ${esc(x.method||'')} ${x.note?'· '+esc(x.note):''}</td><td style="text-align:right"><b>${UAH(x.amount)}</b></td><td style="white-space:nowrap"><button class="btn sm ghost" data-rc="${x.id}" title="Квитанція">🧾</button><button class="btn sm ghost" data-dp="${x.id}">✕</button></td></tr>`).join('')||'<tr><td class="muted">Платежів немає</td></tr>'}</tbody></table></div>`);
-  $$('[data-pay]').forEach(x=>x.onclick=()=>payModal(T.students.find(s=>s.id===x.dataset.pay), m));
-  $$('[data-dp]').forEach(x=>x.onclick=async()=>{ if(!confirm('Видалити платіж?')) return; await del('pays',x.dataset.dp); reroute() });
+    <div class="card" style="padding:0;overflow:auto"><table class="prose ptable" style="width:100%;margin:0"><tbody>${pays.map(x=>`<tr><td>${x.no?'№ '+esc(x.no)+'<br>':''}${esc(x.date)}</td><td>${esc(sname(x.sid))}${x.payer?`<div class="tiny">платник: ${esc(x.payer)}</div>`:''}</td><td class="small">${Number(x.pack)>0?`<b>абонемент ${x.pack} уроків</b>${x.gid?' · '+esc(gname(x.gid)):''}${Number(x.ppct)?' · знижка '+x.ppct+'%':''} · залишок ${packState(T,x).left}`:'за '+monthTitle(x.month||monthOf(x.date)).toLowerCase()} · ${esc(x.method||'')} ${x.note?'· '+esc(x.note):''}</td><td style="text-align:right"><b>${UAH(x.amount)}</b></td><td style="white-space:nowrap"><button class="btn sm ghost" data-rc="${x.id}" title="Квитанція">🧾</button><button class="btn sm ghost" data-dp="${x.id}">✕</button></td></tr>`).join('')||'<tr><td class="muted">Платежів немає</td></tr>'}</tbody></table></div>`);
+  $$('[data-pay]').forEach(x=>x.onclick=()=>payModal(T.students.find(s=>s.id===x.dataset.pay), m)); $$('[data-pk]').forEach(x=>x.onclick=()=>payModal(T.students.find(s=>s.id===x.dataset.pk), m, 'pack'));
+  $$('[data-dp]').forEach(x=>x.onclick=async()=>{ if(!confirm(Number((T.pays.find(q=>q.id===x.dataset.dp)||{}).pack)>0?'Видалити продаж абонемента? Уже списані за ним заняття лишаться списаними.':'Видалити платіж?')) return; await del('pays',x.dataset.dp); reroute() });
   $$('[data-rc]').forEach(x=>x.onclick=()=>showReceipt(T.pays.find(p=>p.id===x.dataset.rc)));
   $('#xl').onclick=exportStudents;
   $('#q').oninput=e=>{ const q=e.target.value.trim().toLowerCase(); $$('#pt tbody tr').forEach(r=>r.style.display=!q||(r.dataset.q||'').includes(q)?'':'none') };
@@ -668,6 +720,7 @@ function vFinance(p){
 
 /* ---------- Налаштування ---------- */
 function discRow(d){ return `<div class="row drow" data-id="${esc(d.id)}" style="gap:6px;margin-bottom:6px"><input class="input" name="dn" value="${esc(d.name)}" placeholder="Причина знижки" style="max-width:360px"><input class="input" name="dv" type="number" min="0" max="100" step="1" value="${esc(d.pct)}" style="max-width:90px"><span class="small muted">%</span><button type="button" class="btn sm ghost" data-rd>✕</button></div>` }
+function packRow(x){ return `<div class="row prow" style="gap:6px;margin-bottom:6px"><span class="small">на</span><input class="input" name="pn" type="number" min="1" max="200" step="1" value="${esc(x.n)}" style="max-width:90px"><span class="small">уроків · знижка</span><input class="input" name="pv" type="number" min="0" max="100" step="0.5" value="${esc(x.pct)}" style="max-width:90px"><span class="small muted">%</span><button type="button" class="btn sm ghost" data-rp>✕</button></div>` }
 function vSettings(){
   const T=D.tables, c=cfgOf(T), {BETA}=A();
   crmShell('settings',`<h1>Налаштування CRM</h1><form class="card" id="sf" style="max-width:720px">
@@ -685,15 +738,21 @@ function vSettings(){
     <h3>Знижки на абонемент</h3><p class="small muted">Причини знижок і відсотки за замовчуванням. У картці учня можна вибрати одну чи кілька причин і змінити відсоток саме для цієї дитини.</p>
     <div id="discs">${c.discounts.map(discRow).join('')}</div><button type="button" class="btn sm ghost" id="adddisc">+ причина знижки</button>
     <div class="field" style="margin-top:12px;max-width:340px"><label>Максимальна сумарна знижка, %</label><input class="input" name="discMax" type="number" min="0" max="100" value="${c.discMax}"></div>
+    <h3>Абонементи на уроки</h3><p class="small muted">Абонемент продається на групу в «Оплатах» або в картці учня. Сума = ціна уроку групи × кількість уроків − знижка абонемента (під час продажу відсоток можна змінити й додати особисту знижку учня, разом не більше максимуму).</p>
+    <div id="packs">${c.packs.map(packRow).join('')}</div><button type="button" class="btn sm ghost" id="addpack">+ абонемент</button>
+    <h3>Пробний урок</h3><div class="field" style="max-width:340px"><label>Ціна пробного уроку, грн</label><input class="input" name="trialPrice" type="number" min="0" step="1" value="${c.trialPrice}"><div class="tiny muted">0 — безкоштовно. Учителю пробний урок рахується як присутній учень.</div></div>
     <button class="btn" type="submit">Зберегти</button></form>
-    <div class="card" style="max-width:720px;margin-top:16px"><h3 style="margin-top:0">Як рахується абонемент</h3><p class="small">Ціна уроку задається для кожної групи. Сума абонемента за місяць = ціна уроку × кількість занять групи в цьому місяці (за розкладом, без скасованих). За кожне відвідане заняття з балансу списується ціна уроку; пропуски не списуються. Від’ємний баланс = борг.</p>
+    <div class="card" style="max-width:720px;margin-top:16px"><h3 style="margin-top:0">Як рахується абонемент</h3><p class="small">Ціна уроку задається для кожної групи. Сума абонемента за місяць = ціна уроку × кількість занять групи в цьому місяці (за розкладом, без скасованих). Абонемент на 12 / 24 / 42 уроки = ціна уроку × кількість уроків зі знижкою абонемента. За кожне заняття «присутній» чи «відпрацював» з балансу списується ціна уроку (за абонементом — ціна уроку в абонементі, доки не закінчаться уроки); «не було» не списується. Від’ємний баланс = борг.</p>
     <p class="small">Змінити логін і пароль адміністратора філії може методист у своїй панелі.</p></div>
     ${BETA?`<div class="card" style="max-width:720px;margin-top:16px"><h3 style="margin-top:0">Бета</h3><p class="small">Дані CRM цієї філії зберігаються лише в цьому браузері. На початку додано демо-групи, учнів і оплати.</p><button class="btn ghost" id="reset">Почати з порожньої бази</button> <button class="btn ghost" id="demo">Повернути демо-дані</button></div>`:''}`);
   const bindD=()=>$$('[data-rd]').forEach(b=>b.onclick=()=>b.closest('.drow').remove()); bindD();
   $('#adddisc').onclick=()=>{ $('#discs').insertAdjacentHTML('beforeend',discRow({id:uid('d'),name:'',pct:5})); bindD() };
+  const bindP=()=>$$('[data-rp]').forEach(b=>b.onclick=()=>b.closest('.prow').remove()); bindP();
+  $('#addpack').onclick=()=>{ $('#packs').insertAdjacentHTML('beforeend',packRow({n:'',pct:''})); bindP() };
   $('#sf').onsubmit=async e=>{ e.preventDefault(); const x=Object.fromEntries(new FormData(e.target).entries());
     const discs=$$('#discs .drow').map(r=>({id:r.dataset.id,name:$('[name=dn]',r).value.trim(),pct:Math.max(0,Math.min(100,Number($('[name=dv]',r).value)||0))})).filter(d=>d.name);
-    await save('cfg',['bonusFrom','bonusPer','defaultBase','premiumMode','discMax'].map(k=>({id:k,value:k==='premiumMode'?x[k]:Number(x[k])||0})).concat([{id:'discounts',value:JSON.stringify(discs)}],['orgName','unit','edrpou','cashier','receiptPrefix'].map(k=>({id:k,value:String(x[k]||'').trim()})))); A().toast('Налаштування збережено'); reroute() };
+    const packs=$$('#packs .prow').map(r=>({n:Math.round(Number($('[name=pn]',r).value)||0),pct:Math.max(0,Math.min(100,Number($('[name=pv]',r).value)||0))})).filter(p=>p.n>0).sort((a,b)=>a.n-b.n);
+    await save('cfg',['bonusFrom','bonusPer','defaultBase','premiumMode','discMax','trialPrice'].map(k=>({id:k,value:k==='premiumMode'?x[k]:Number(x[k])||0})).concat([{id:'discounts',value:JSON.stringify(discs)},{id:'packs',value:JSON.stringify(packs)}],['orgName','unit','edrpou','cashier','receiptPrefix'].map(k=>({id:k,value:String(x[k]||'').trim()})))); A().toast('Налаштування збережено'); reroute() };
   if(BETA){ $('#reset').onclick=()=>{ if(!confirm('Видалити всі дані CRM цієї філії в браузері?')) return; Local.save(D.branch,Local.empty()); D=null; reroute() };
     $('#demo').onclick=()=>{ A().LS.del(Local.key(D.branch)); D=null; reroute() } }
 }
@@ -713,18 +772,18 @@ async function teacherRoute(p){
   const rp=rolePay(TD,me,m).filter(x=>x.sum>0); earn+=rp.reduce((t,x)=>t+x.sum,0);
   const unmarked=lessonsIn(TD,addDays(today(),-14),addDays(today(),-1)).filter(l=>l.teacher===me&&!l.cancelled&&!isHeld(l,ai[l.id]));
   const stud=gid=>TD.students.filter(s=>s.status!=='archive'&&groupIds(s).includes(gid));
-  shell('schedule',`<h1>Мій розклад</h1><p class="muted">Заняття, які ви проводите (разом із замінами). Після заняття відмітьте присутніх — так рахуються оплата учнів і ваша зарплата.</p>
+  shell('schedule',`<h1>Мій розклад</h1><p class="muted">Заняття, які ви проводите (разом із замінами). Після заняття відмітьте кожного учня: присутній, не було, відпрацював (прийшов на заміну пропущеного заняття) або пробний урок — так рахуються оплата учнів і ваша зарплата.</p>
     <div class="grid g3">${kpi('Проведено в '+MONTHS[Number(m.slice(5))-1].toLowerCase(),held+' з '+ML.filter(l=>!l.cancelled).length,'занять')}${kpi('Заробіток за місяць',UAH(earn),rp.length?'заняття + '+rp.map(x=>esc(x.role.toLowerCase())+' '+UAH(x.sum)).join(', '):'за відміченими заняттями','good')}${kpi('Невідмічені',unmarked.length,unmarked.length?'за останні 2 тижні':'усе відмічено',unmarked.length?'bad':'')}</div>
     ${unmarked.length?`<div class="callout warn" style="margin-top:14px"><b>Відмітьте заняття:</b> ${unmarked.map(l=>`<a href="#/schedule/${weekStart(l.date)}">${esc(l.g.name)} · ${fmtDate(l.date)}</a>`).join(' · ')}</div>`:''}
     <div class="row" style="margin-top:20px"><h2 class="grow" style="margin:0">${fmtDate(ws)} — ${fmtDate(we)}</h2><a class="btn sm ghost" href="#/schedule/${addDays(ws,-7)}">‹</a><a class="btn sm ghost" href="#/schedule/${addDays(ws,7)}">›</a>${ws!==weekStart(today())?'<a class="btn sm ghost" href="#/schedule">Цей тиждень</a>':''}<a class="btn sm ghost" href="#/schedule/reload">Оновити</a></div>
     ${WD.map((w,i)=>{ const d=addDays(ws,i), ls=mine.filter(l=>l.date===d), gv=given.filter(l=>l.date===d); if(!ls.length&&!gv.length) return '';
-      return `<h3 style="margin:18px 0 8px">${WD_FULL[i]}, ${fmtDate(d)}${d===today()?' · сьогодні':''}</h3>`+ls.map(l=>{ const mk=ai[l.id]||{}, n=Object.keys(mk).length, pr=Object.values(mk).filter(a=>a.mark==='p').length, ss=stud(l.gid);
+      return `<h3 style="margin:18px 0 8px">${WD_FULL[i]}, ${fmtDate(d)}${d===today()?' · сьогодні':''}</h3>`+ls.map(l=>{ const mk=ai[l.id]||{}, n=Object.keys(mk).length, pr=Object.values(mk).filter(a=>ATTENDED(a.mark)).length, ss=stud(l.gid);
         return `<div class="card tl" style="border-left:5px solid ${courseColor(l.g.cid)}" data-lid="${esc(l.id)}"><div class="row"><div class="grow"><b>${esc(l.time)} · ${esc(l.g.name)}</b><div class="small muted">${esc(courseTitle(l.g.cid))} · ${esc(l.g.room||'')} · учнів: ${ss.length}${l.sub?' · <span class="pill warn">ви на заміні</span>':''}${l.extra?' · разове заняття':''}</div>${l.note?`<div class="small">Тема: ${esc(l.note)}</div>`:''}</div>
           ${l.cancelled?'<span class="pill bad">Скасовано</span>':n?`<span class="pill good">Відмічено ${pr}/${n}</span>`:''}${!l.cancelled&&l.date<=today()?`<button class="btn sm" data-mark="${esc(l.id)}">${n?'Змінити':'Відмітити'}</button>`:''}</div><div class="markbox"></div></div>` }).join('')
         +gv.map(l=>`<div class="card tl" style="opacity:.6"><b>${esc(l.time)} · ${esc(l.g.name)}</b> <span class="pill">заміна: проводить інший учитель</span></div>`).join('') }).join('')||'<div class="card" style="margin-top:12px"><p class="muted">На цьому тижні занять немає. Розклад складає адміністратор філії.</p></div>'}`);
   $$('[data-mark]').forEach(b=>b.onclick=()=>{ const l=all.find(x=>x.id===b.dataset.mark), box=$('.markbox',b.closest('.tl')), mk=ai[l.id]||{};
     const ss=stud(l.gid).concat(TD.students.filter(s=>mk[s.id]&&!groupIds(s).includes(l.gid)));
-    box.innerHTML=`<div class="marks">${ss.map(s=>{ const v=(mk[s.id]||{}).mark||''; return `<div class="mrow" data-s="${s.id}"><span class="grow">${esc(s.child)}</span><button type="button" class="btn sm ${v==='p'?'':'ghost'}" data-v="p">✓ Присутній</button><button type="button" class="btn sm ${v==='a'?'':'ghost'}" data-v="a">Н Відсутній</button></div>` }).join('')||'<p class="muted small">У групі немає учнів.</p>'}</div>
+    box.innerHTML=`<div class="marks">${ss.map(s=>{ const v=(mk[s.id]||{}).mark||''; return `<div class="mrow" data-s="${s.id}"><span class="grow">${esc(s.child)}</span>${MARK_ORDER.map(k=>`<button type="button" class="btn sm ${v===k?'':'ghost'}" data-v="${k}">${MARKS[k].s} ${MARKS[k].l}</button>`).join('')}</div>` }).join('')||'<p class="muted small">У групі немає учнів.</p>'}</div>
       <div class="field" style="margin-top:8px"><label>Тема заняття</label><input class="input" id="note" value="${esc(l.note)}"></div><div class="row"><button class="btn sm ghost" id="allp" type="button">Усі присутні</button><span class="grow"></span><button class="btn" id="svm">Зберегти відмітки</button></div>`;
     $$('.mrow',box).forEach(r=>$$('[data-v]',r).forEach(x=>x.onclick=()=>{ const on=!x.classList.contains('ghost'); $$('[data-v]',r).forEach(y=>y.classList.add('ghost')); if(!on) x.classList.remove('ghost'); r.dataset.v=on?'':x.dataset.v }));
     $$('.mrow',box).forEach(r=>{ r.dataset.v=(mk[r.dataset.s]||{}).mark||'' });

@@ -18,5 +18,5 @@ window.RS_CONFIG = {
   CONTACT_PHONE: '066 545 91 28',
   CONTACT_EMAIL: 'achaban62@gmail.com',
   DIRS: [ {key:'robot', title:'Робототехніка'}, {key:'3d', title:'3D-графіка'}, {key:'code', title:'Програмування'} ],
-  VERSION: '3.0 · 30.10.2026'
+  VERSION: '3.2 · 03.11.2026'
 };
