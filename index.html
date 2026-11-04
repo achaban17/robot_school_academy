@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex, nofollow">
 <title>Robot School System</title>
 <link rel="icon" type="image/png" href="assets/mark.png">
-<link rel="manifest" href="manifest.webmanifest">
+<link rel="manifest" href="manifest.webmanifest?v=3.3">
 <meta name="theme-color" content="#0A44DC">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
@@ -343,48 +343,48 @@ table.att th,table.att td{padding:6px 4px;text-align:center}table.att td:first-c
 </head>
 <body>
 <div id="root"></div>
-<script src="config.js"></script>
-<script src="data/method.js"></script>
-<script src="data/method-extra.js"></script>
-<script src="data/method-v13.js"></script>
-<script src="data/course-lego-start.js"></script>
-<script src="data/course-python.js"></script>
-<script src="data/course-onshape.js"></script>
-<script src="data/course-robolt.js"></script>
-<script src="data/course-microbit.js"></script>
-<script src="data/course-tinkercad.js"></script>
-<script src="data/course-minigames.js"></script>
-<script src="data/course-scratch.js"></script>
-<script src="data/course-pythonx.js"></script>
-<script src="data/course-codeblocks.js"></script>
-<script src="data/course-blender1.js"></script>
-<script src="data/course-blender2.js"></script>
-<script src="data/course-pythony.js"></script>
-<script src="data/course-duplo.js"></script>
-<script src="data/course-uaro.js"></script>
-<script src="data/course-wedo.js"></script>
-<script src="data/course-lego-scratch.js"></script>
-<script src="data/course-transformers.js"></script>
-<script src="data/course-arduino.js"></script>
-<script src="data/course-engineering.js"></script>
-<script src="data/course-scratch-online.js"></script>
-<script src="data/course-java.js"></script>
-<script src="data/situations-extra.js"></script>
-<script src="data/sim-lib.js"></script>
-<script src="data/sims-robot.js"></script>
-<script src="data/sims-3d.js"></script>
-<script src="data/sims-code.js"></script>
-<script src="data/passports.js"></script>
-<script src="data/passports2.js"></script>
-<script src="data/admin-patches.js"></script>
-<script src="data/admin-layer.js"></script>
-<script src="modules/trainers.js"></script>
-<script src="modules/admin.js"></script>
-<script src="vendor/pdfjs/pdf.min.js"></script>
-<script src="modules/library.js"></script>
-<script src="modules/crm.js"></script>
-<script src="modules/builder.js"></script>
-<script src="modules/processing.js"></script>
+<script src="config.js?v=3.3"></script>
+<script src="data/method.js?v=3.3"></script>
+<script src="data/method-extra.js?v=3.3"></script>
+<script src="data/method-v13.js?v=3.3"></script>
+<script src="data/course-lego-start.js?v=3.3"></script>
+<script src="data/course-python.js?v=3.3"></script>
+<script src="data/course-onshape.js?v=3.3"></script>
+<script src="data/course-robolt.js?v=3.3"></script>
+<script src="data/course-microbit.js?v=3.3"></script>
+<script src="data/course-tinkercad.js?v=3.3"></script>
+<script src="data/course-minigames.js?v=3.3"></script>
+<script src="data/course-scratch.js?v=3.3"></script>
+<script src="data/course-pythonx.js?v=3.3"></script>
+<script src="data/course-codeblocks.js?v=3.3"></script>
+<script src="data/course-blender1.js?v=3.3"></script>
+<script src="data/course-blender2.js?v=3.3"></script>
+<script src="data/course-pythony.js?v=3.3"></script>
+<script src="data/course-duplo.js?v=3.3"></script>
+<script src="data/course-uaro.js?v=3.3"></script>
+<script src="data/course-wedo.js?v=3.3"></script>
+<script src="data/course-lego-scratch.js?v=3.3"></script>
+<script src="data/course-transformers.js?v=3.3"></script>
+<script src="data/course-arduino.js?v=3.3"></script>
+<script src="data/course-engineering.js?v=3.3"></script>
+<script src="data/course-scratch-online.js?v=3.3"></script>
+<script src="data/course-java.js?v=3.3"></script>
+<script src="data/situations-extra.js?v=3.3"></script>
+<script src="data/sim-lib.js?v=3.3"></script>
+<script src="data/sims-robot.js?v=3.3"></script>
+<script src="data/sims-3d.js?v=3.3"></script>
+<script src="data/sims-code.js?v=3.3"></script>
+<script src="data/passports.js?v=3.3"></script>
+<script src="data/passports2.js?v=3.3"></script>
+<script src="data/admin-patches.js?v=3.3"></script>
+<script src="data/admin-layer.js?v=3.3"></script>
+<script src="modules/trainers.js?v=3.3"></script>
+<script src="modules/admin.js?v=3.3"></script>
+<script src="vendor/pdfjs/pdf.min.js?v=3.3"></script>
+<script src="modules/library.js?v=3.3"></script>
+<script src="modules/crm.js?v=3.3"></script>
+<script src="modules/builder.js?v=3.3"></script>
+<script src="modules/processing.js?v=3.3"></script>
 <script>
 /* PWA: встановлення на телефон і ПК (працює на https) */
 (function(){
@@ -456,8 +456,21 @@ async function callApi(payload){
   if(!CFG.API_URL) throw new Error('Не вказано адресу Google Apps Script (API_URL у config.js).');
   const r = await fetch(CFG.API_URL,{method:'POST',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload),redirect:'follow'});
   const j = await r.json();
+  checkServer(j);
   if(!j.ok) throw new Error(j.error||'Помилка сервера');
   return j;
+}
+/* Сайт і Google Apps Script оновлюються окремо. Якщо сервер старіший за сайт — методист і адміністратор
+   філії бачать підказку, як оновити розгортання (інакше нові функції не зберігаються). */
+const SERVER_MIN = '3.3';
+function checkServer(j){
+  const v=String(j.sv||''), old=!v || v.localeCompare(SERVER_MIN,undefined,{numeric:true})<0 || /Невідома дія/.test(j.error||'');
+  let b=document.getElementById('sv-warn');
+  if(!old || !(S.admin||S.crm)){ if(b&&!old) b.remove(); return }
+  if(b) return; b=document.createElement('div'); b.id='sv-warn'; b.className='callout bad';
+  b.style.cssText='position:fixed;left:12px;right:12px;bottom:12px;z-index:90;max-width:760px;margin:auto;box-shadow:0 10px 30px rgba(11,26,63,.25)';
+  b.innerHTML=`<b>Сервер (Google Apps Script) ще старої версії${v?' — '+esc(v):''}</b><p class="small">Сайт оновлено до ${esc(CFG.VERSION||'')}, а Apps Script — ні, тому нові функції не працюють або не зберігаються. Відкрийте Apps Script → вставте новий Code.gs (поверніть свої посилання) → «Розгорнути» → «Керувати розгортаннями» → олівець ✎ → «Версія: Нова версія» → «Розгорнути». Просто «Зберегти» недостатньо.</p><button class="btn sm ghost" type="button">Зрозуміло</button>`;
+  b.querySelector('button').onclick=()=>b.remove(); document.body.appendChild(b);
 }
 const API = {
   async register(p){
